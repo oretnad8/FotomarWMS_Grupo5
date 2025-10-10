@@ -1,51 +1,54 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.pneuma.fotomarwms_grupo5.models.EstadoAprobacion
+import com.pneuma.fotomarwms_grupo5.models.Piso
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
-import com.pneuma.fotomarwms_grupo5.viewmodels.AprobacionViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.UbicacionViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Pantalla de Aprobaciones
- * Solo para JEFE y SUPERVISOR
+ * Pantalla de Gestión de Ubicaciones
  *
  * Funcionalidades:
- * - Lista de solicitudes de movimiento pendientes de aprobación
- * - Filtros por estado (Pendiente, Aprobado, Rechazado)
- * - Acceso rápido a aprobar/rechazar
+ * - Vista de todas las ubicaciones por piso (A, B, C)
+ * - Filtro por piso
+ * - Vista en cuadrícula de ubicaciones
+ * - Jefe: Asignación directa de productos
+ * - Operador: Solicitar cambio de ubicación (requiere aprobación)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AprobacionesScreen(
+fun GestionUbicacionesScreen(
     authViewModel: AuthViewModel,
-    aprobacionViewModel: AprobacionViewModel,
-    onNavigateToDetail: (Int) -> Unit,
+    ubicacionViewModel: UbicacionViewModel,
+    onNavigateToDetail: (String) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Estados
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
-    val aprobacionesState by aprobacionViewModel.aprobacionesState.collectAsStateWithLifecycle()
-    val estadoFiltro by aprobacionViewModel.estadoFiltro.collectAsStateWithLifecycle()
+    val ubicacionesState by ubicacionViewModel.ubicacionesState.collectAsStateWithLifecycle()
+    val pisoSeleccionado by ubicacionViewModel.pisoSeleccionado.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Cargar aprobaciones al iniciar
+    // Cargar ubicaciones al iniciar
     LaunchedEffect(Unit) {
-        aprobacionViewModel.getAllAprobaciones()
+        ubicacionViewModel.getAllUbicaciones()
     }
 
     // Drawer con menú lateral
@@ -54,7 +57,7 @@ fun AprobacionesScreen(
         drawerContent = {
             DrawerContent(
                 currentUser = currentUser,
-                currentRoute = "aprobaciones",
+                currentRoute = "gestion_ubicaciones",
                 onNavigate = { route ->
                     scope.launch {
                         drawerState.close()
@@ -71,7 +74,7 @@ fun AprobacionesScreen(
         Scaffold(
             topBar = {
                 AppTopBar(
-                    title = "Aprobaciones",
+                    title = "Ubicaciones",
                     onMenuClick = {
                         scope.launch { drawerState.open() }
                     }
@@ -83,7 +86,7 @@ fun AprobacionesScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // ========== FILTROS POR ESTADO ==========
+                // ========== FILTROS POR PISO ==========
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -93,7 +96,7 @@ fun AprobacionesScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "Filtrar por estado",
+                            text = "Filtrar por piso",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 12.dp)
@@ -103,42 +106,42 @@ fun AprobacionesScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Todos
+                            // Botón Todos
                             FilterChip(
                                 text = "Todos",
-                                selected = estadoFiltro == null,
+                                selected = pisoSeleccionado == null,
                                 onClick = {
-                                    aprobacionViewModel.clearEstadoFilter()
+                                    ubicacionViewModel.clearPisoFilter()
                                 },
                                 modifier = Modifier.weight(1f)
                             )
 
-                            // Pendientes
+                            // Botón Piso A
                             FilterChip(
-                                text = "Pendientes",
-                                selected = estadoFiltro == EstadoAprobacion.PENDIENTE,
+                                text = "Piso A",
+                                selected = pisoSeleccionado == Piso.A,
                                 onClick = {
-                                    aprobacionViewModel.getAprobacionesByEstado(EstadoAprobacion.PENDIENTE)
+                                    ubicacionViewModel.getUbicacionesByPiso(Piso.A)
                                 },
                                 modifier = Modifier.weight(1f)
                             )
 
-                            // Aprobados
+                            // Botón Piso B
                             FilterChip(
-                                text = "Aprobados",
-                                selected = estadoFiltro == EstadoAprobacion.APROBADO,
+                                text = "Piso B",
+                                selected = pisoSeleccionado == Piso.B,
                                 onClick = {
-                                    aprobacionViewModel.getAprobacionesByEstado(EstadoAprobacion.APROBADO)
+                                    ubicacionViewModel.getUbicacionesByPiso(Piso.B)
                                 },
                                 modifier = Modifier.weight(1f)
                             )
 
-                            // Rechazados
+                            // Botón Piso C
                             FilterChip(
-                                text = "Rechazados",
-                                selected = estadoFiltro == EstadoAprobacion.RECHAZADO,
+                                text = "Piso C",
+                                selected = pisoSeleccionado == Piso.C,
                                 onClick = {
-                                    aprobacionViewModel.getAprobacionesByEstado(EstadoAprobacion.RECHAZADO)
+                                    ubicacionViewModel.getUbicacionesByPiso(Piso.C)
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -146,48 +149,62 @@ fun AprobacionesScreen(
                     }
                 }
 
-                // ========== LISTA DE APROBACIONES ==========
+                // ========== LISTA DE UBICACIONES ==========
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .weight(1f)
                 ) {
-                    when (val state = aprobacionesState) {
+                    when (val state = ubicacionesState) {
                         is UiState.Loading -> {
-                            LoadingState(message = "Cargando solicitudes...")
+                            LoadingState(message = "Cargando ubicaciones...")
                         }
 
                         is UiState.Success -> {
                             if (state.data.isEmpty()) {
                                 EmptyState(
-                                    icon = Icons.Default.CheckCircle,
-                                    title = "Sin solicitudes",
-                                    message = if (estadoFiltro != null) {
-                                        "No hay solicitudes con estado ${estadoFiltro!!.name}"
-                                    } else {
-                                        "No hay solicitudes de aprobación"
-                                    }
+                                    icon = Icons.Default.LocationOff,
+                                    title = "Sin ubicaciones",
+                                    message = "No se encontraron ubicaciones para este piso"
                                 )
                             } else {
                                 Column {
                                     // Header con contador
-                                    Text(
-                                        text = "${state.data.size} solicitud(es)",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(16.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${state.data.size} ubicación(es)",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
 
-                                    // Lista de aprobaciones
-                                    LazyColumn(
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                        Text(
+                                            text = if (pisoSeleccionado != null)
+                                                "Piso ${pisoSeleccionado!!.codigo}"
+                                            else
+                                                "Todos los pisos",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
+                                    // Grid de ubicaciones
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Fixed(3),
+                                        contentPadding = PaddingValues(16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        items(state.data) { aprobacion ->
-                                            AprobacionCard(
-                                                aprobacion = aprobacion,
+                                        items(state.data) { ubicacion ->
+                                            UbicacionCard(
+                                                ubicacion = ubicacion,
                                                 onClick = {
-                                                    onNavigateToDetail(aprobacion.id)
+                                                    onNavigateToDetail(ubicacion.codigoUbicacion)
                                                 }
                                             )
                                         }
@@ -200,10 +217,10 @@ fun AprobacionesScreen(
                             ErrorState(
                                 message = state.message,
                                 onRetry = {
-                                    if (estadoFiltro != null) {
-                                        aprobacionViewModel.getAprobacionesByEstado(estadoFiltro!!)
+                                    if (pisoSeleccionado != null) {
+                                        ubicacionViewModel.getUbicacionesByPiso(pisoSeleccionado!!)
                                     } else {
-                                        aprobacionViewModel.getAllAprobaciones()
+                                        ubicacionViewModel.getAllUbicaciones()
                                     }
                                 }
                             )
@@ -211,9 +228,9 @@ fun AprobacionesScreen(
 
                         is UiState.Idle -> {
                             EmptyState(
-                                icon = Icons.Default.Assignment,
-                                title = "Aprobaciones",
-                                message = "Selecciona un filtro para ver las solicitudes"
+                                icon = Icons.Default.LocationOn,
+                                title = "Ubicaciones",
+                                message = "Selecciona un piso para ver las ubicaciones"
                             )
                         }
                     }

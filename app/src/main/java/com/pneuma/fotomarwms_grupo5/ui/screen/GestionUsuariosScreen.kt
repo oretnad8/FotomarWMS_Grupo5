@@ -1,296 +1,377 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.model.UserRole
-import com.pneuma.fotomarwms_grupo5.model.Usuario
-import com.pneuma.fotomarwms_grupo5.viewmodels.GestionUsuariosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.Rol
+import com.pneuma.fotomarwms_grupo5.models.UiState
+import com.pneuma.fotomarwms_grupo5.models.Usuario
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.UsuarioViewModel
 
 /**
- * Pantalla de gestión de usuarios (solo ADMIN)
+ * Pantalla de Gestión de Usuarios
+ * Solo para ADMIN
  *
- * Permite:
- * - Ver lista de todos los usuarios
- * - Crear nuevos usuarios
- * - Editar información de usuarios
- * - Activar/desactivar usuarios
+ * Funcionalidades:
+ * - Lista de todos los usuarios del sistema
+ * - Crear nuevo usuario
+ * - Editar usuario existente
+ * - Activar/Desactivar usuario
+ * - Eliminar usuario
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GestionUsuariosScreen(
-    navController: NavController,
-    viewModel: GestionUsuariosViewModel = viewModel()
+    usuarioViewModel: UsuarioViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var mostrarDialogoNuevoUsuario by remember { mutableStateOf(false) }
+    // Estados
+    val usuariosState by usuarioViewModel.usuariosState.collectAsStateWithLifecycle()
+    val createState by usuarioViewModel.createUsuarioState.collectAsStateWithLifecycle()
+    val deleteState by usuarioViewModel.deleteUsuarioState.collectAsStateWithLifecycle()
+
+    // Estados de UI
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var usuarioToDelete by remember { mutableStateOf<Usuario?>(null) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf("") }
+
+    // Cargar usuarios al iniciar
+    LaunchedEffect(Unit) {
+        usuarioViewModel.getAllUsuarios()
+    }
+
+    // Manejar éxito de creación
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is UiState.Success -> {
+                successMessage = "Usuario creado exitosamente"
+                showSuccessDialog = true
+                showCreateDialog = false
+                usuarioViewModel.clearCreateState()
+            }
+            else -> {}
+        }
+    }
+
+    // Manejar éxito de eliminación
+    LaunchedEffect(deleteState) {
+        when (val state = deleteState) {
+            is UiState.Success -> {
+                successMessage = "Usuario eliminado exitosamente"
+                showSuccessDialog = true
+                showDeleteDialog = false
+                usuarioToDelete = null
+                usuarioViewModel.clearDeleteState()
+            }
+            else -> {}
+        }
+    }
+
+    // Diálogos
+    SuccessDialog(
+        message = successMessage,
+        onDismiss = { showSuccessDialog = false },
+        showDialog = showSuccessDialog
+    )
+
+    DeleteDialog(
+        title = "Eliminar Usuario",
+        message = "¿Estás seguro de eliminar a ${usuarioToDelete?.nombre}? Esta acción no se puede deshacer.",
+        onConfirm = {
+            usuarioToDelete?.let {
+                usuarioViewModel.deleteUsuario(it.id)
+            }
+        },
+        onDismiss = {
+            showDeleteDialog = false
+            usuarioToDelete = null
+        },
+        showDialog = showDeleteDialog
+    )
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Gestión de Usuarios") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            BackTopBar(
+                title = "Gestión de Usuarios",
+                onBackClick = onNavigateBack
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { mostrarDialogoNuevoUsuario = true },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar usuario")
-            }
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            // Estadísticas
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                EstadisticaUsuarioCard(
-                    titulo = "Total",
-                    valor = uiState.usuarios.size.toString(),
-                    color = Color(0xFF42A5F5),
-                    modifier = Modifier.weight(1f)
-                )
-                EstadisticaUsuarioCard(
-                    titulo = "Activos",
-                    valor = uiState.usuarios.count { it.activo }.toString(),
-                    color = Color(0xFF66BB6A),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Usuarios Registrados",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
+            ActionFab(
+                onClick = { showCreateDialog = true },
+                icon = Icons.Default.PersonAdd,
+                contentDescription = "Crear usuario"
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Lista de usuarios
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when (val state = usuariosState) {
+                is UiState.Loading -> {
+                    LoadingState(message = "Cargando usuarios...")
                 }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(uiState.usuarios) { usuario ->
-                        UsuarioCard(
-                            usuario = usuario,
-                            onToggleActivo = { viewModel.toggleUsuarioActivo(it) }
+
+                is UiState.Success -> {
+                    if (state.data.isEmpty()) {
+                        EmptyState(
+                            icon = Icons.Default.PersonOff,
+                            title = "Sin usuarios",
+                            message = "No hay usuarios registrados en el sistema"
                         )
+                    } else {
+                        Column {
+                            // Header con contador
+                            Text(
+                                text = "${state.data.size} usuario(s)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(16.dp)
+                            )
+
+                            // Lista de usuarios
+                            LazyColumn(
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(state.data) { usuario ->
+                                    UsuarioCard(
+                                        usuario = usuario,
+                                        onToggleActivo = {
+                                            usuarioViewModel.toggleActivoUsuario(usuario.id)
+                                        },
+                                        onDelete = {
+                                            usuarioToDelete = usuario
+                                            showDeleteDialog = true
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
+
+                is UiState.Error -> {
+                    ErrorState(
+                        message = state.message,
+                        onRetry = { usuarioViewModel.getAllUsuarios() }
+                    )
+                }
+
+                is UiState.Idle -> {}
             }
         }
     }
 
-    // Diálogo para crear nuevo usuario
-    if (mostrarDialogoNuevoUsuario) {
-        NuevoUsuarioDialog(
-            onDismiss = { mostrarDialogoNuevoUsuario = false },
-            onConfirm = { nombre, email, rol ->
-                viewModel.crearUsuario(nombre, email, rol)
-                mostrarDialogoNuevoUsuario = false
-            }
+    // Diálogo de crear usuario
+    if (showCreateDialog) {
+        CreateUsuarioDialog(
+            usuarioViewModel = usuarioViewModel,
+            onDismiss = { showCreateDialog = false },
+            isLoading = createState is UiState.Loading
         )
     }
 }
 
 /**
- * Card de estadística de usuarios
+ * Card de usuario con acciones
  */
 @Composable
-fun EstadisticaUsuarioCard(
-    titulo: String,
-    valor: String,
-    color: Color,
+private fun UsuarioCard(
+    usuario: Usuario,
+    onToggleActivo: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = valor,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text = titulo,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-/**
- * Card de usuario individual
- */
-@Composable
-fun UsuarioCard(
-    usuario: Usuario,
-    onToggleActivo: (Usuario) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = modifier.fillMaxWidth()
+    ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Avatar
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(
-                        when (usuario.rol) {
-                            UserRole.ADMIN -> Color(0xFFEF5350)
-                            UserRole.JEFE -> Color(0xFF42A5F5)
-                            UserRole.SUPERVISOR -> Color(0xFFFFA726)
-                            UserRole.OPERADOR -> Color(0xFF66BB6A)
-                        }
-                    ),
-                contentAlignment = Alignment.Center
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(56.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Avatar",
-                    tint = Color.White
-                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            // Info del usuario
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = usuario.nombre,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = usuario.email,
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Badge(
-                    containerColor = when (usuario.rol) {
-                        UserRole.ADMIN -> Color(0xFFEF5350)
-                        UserRole.JEFE -> Color(0xFF42A5F5)
-                        UserRole.SUPERVISOR -> Color(0xFFFFA726)
-                        UserRole.OPERADOR -> Color(0xFF66BB6A)
-                    }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = usuario.rol.name,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
+                    RolBadge(rol = usuario.rol)
+
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = if (usuario.activo)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text(
+                            text = if (usuario.activo) "Activo" else "Inactivo",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = if (usuario.activo)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
             }
 
-            // Switch de activo/inactivo
-            Switch(
-                checked = usuario.activo,
-                onCheckedChange = { onToggleActivo(usuario) }
-            )
+            // Acciones
+            Column(horizontalAlignment = Alignment.End) {
+                IconButton(onClick = onToggleActivo) {
+                    Icon(
+                        imageVector = if (usuario.activo)
+                            Icons.Default.Lock
+                        else
+                            Icons.Default.LockOpen,
+                        contentDescription = if (usuario.activo)
+                            "Desactivar"
+                        else
+                            "Activar"
+                    )
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Eliminar",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * Diálogo para crear nuevo usuario
+ * Diálogo para crear un nuevo usuario
  */
 @Composable
-fun NuevoUsuarioDialog(
+private fun CreateUsuarioDialog(
+    usuarioViewModel: UsuarioViewModel,
     onDismiss: () -> Unit,
-    onConfirm: (nombre: String, email: String, rol: UserRole) -> Unit
+    isLoading: Boolean
 ) {
     var nombre by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var rol by remember { mutableStateOf(UserRole.OPERADOR) }
+    var password by remember { mutableStateOf("") }
+    var rolSeleccionado by remember { mutableStateOf<Rol?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nuevo Usuario") },
+        icon = {
+            Icon(Icons.Default.PersonAdd, contentDescription = null)
+        },
+        title = {
+            Text("Crear Usuario")
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+            Column {
+                AppTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Nombre completo",
+                    placeholder = "Juan Pérez"
                 )
-
-                OutlinedTextField(
+                Spacer(modifier = Modifier.height(8.dp))
+                AppTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Email",
+                    placeholder = "juan@fotomar.cl"
                 )
-
-                Text("Rol:", fontSize = 14.sp)
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = rol == UserRole.OPERADOR,
-                        onClick = { rol = UserRole.OPERADOR },
-                        label = { Text("Operador", fontSize = 12.sp) }
-                    )
-                    FilterChip(
-                        selected = rol == UserRole.JEFE,
-                        onClick = { rol = UserRole.JEFE },
-                        label = { Text("Jefe", fontSize = 12.sp) }
-                    )
+                Spacer(modifier = Modifier.height(8.dp))
+                PasswordTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = "Contraseña inicial"
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Rol:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Rol.values().forEach { rol ->
+                        FilterChip(
+                            text = usuarioViewModel.getRolDisplayName(rol),
+                            selected = rolSeleccionado == rol,
+                            onClick = { rolSeleccionado = rol },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
-            Button(
-                onClick = { onConfirm(nombre, email, rol) },
-                enabled = nombre.isNotBlank() && email.isNotBlank()
+            TextButton(
+                onClick = {
+                    if (nombre.isNotBlank() && email.isNotBlank() &&
+                        password.isNotBlank() && rolSeleccionado != null) {
+                        usuarioViewModel.createUsuario(
+                            nombre = nombre,
+                            email = email,
+                            password = password,
+                            rol = rolSeleccionado!!.name
+                        )
+                    }
+                },
+                enabled = !isLoading
             ) {
                 Text("Crear")
             }

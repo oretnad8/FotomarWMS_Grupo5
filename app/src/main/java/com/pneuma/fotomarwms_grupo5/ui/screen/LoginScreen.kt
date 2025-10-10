@@ -1,163 +1,323 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.viewmodels.LoginViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.R
+import com.pneuma.fotomarwms_grupo5.models.AuthState
+import com.pneuma.fotomarwms_grupo5.navigation.getDashboardForRole
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 
 /**
- * Pantalla de Login con diferenciación de roles
- * Permite autenticar usuarios: ADMIN, JEFE, SUPERVISOR u OPERADOR
+ * Pantalla de Login
+ * Permite autenticación de usuarios y redirige al dashboard según el rol
+ *
+ * Características:
+ * - Logo de la empresa centrado en la parte superior
+ * - Validación de campos en tiempo real
+ * - Manejo de estados (cargando, error, autenticado)
+ * - Diferenciación de roles automática después del login
  */
 @Composable
 fun LoginScreen(
-    navController: NavController,
-    viewModel: LoginViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    onNavigateToHome: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    // Estados locales para los campos del formulario
+    // Estados del ViewModel
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
+
+    // Estados locales del formulario
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
 
-    // Observar el estado de la UI desde el ViewModel
-    val uiState by viewModel.uiState.collectAsState()
+    // Estados de UI
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
-    // Contenedor principal con padding
+    // Efecto para navegar cuando se autentica exitosamente
+    LaunchedEffect(authState) {
+        when (val state = authState) {
+            is AuthState.Authenticated -> {
+                val dashboardRoute = getDashboardForRole(state.usuario.rol.name)
+                onNavigateToHome(dashboardRoute.route)
+            }
+            is AuthState.Error -> {
+                errorMessage = state.message
+                showErrorDialog = true
+            }
+            else -> {}
+        }
+    }
+
+    // Diálogo de error
+    ErrorDialog(
+        message = errorMessage,
+        onDismiss = {
+            showErrorDialog = false
+            authViewModel.clearError()
+        },
+        showDialog = showErrorDialog
+    )
+
+    // Layout principal
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+        modifier = modifier.fillMaxSize()
     ) {
         Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()
+            verticalArrangement = Arrangement.Center
         ) {
-            // Logo o título de la aplicación
-            Text(
-                text = "FotomarWMS",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+            Image(
+                painter = painterResource(id = R.drawable.logo),
+                contentDescription = "Logo FotomarWMS",
+                modifier = Modifier.size(120.dp)
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Sistema de Gestión de Bodega",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Campo de Email/Usuario
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email o Usuario") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                isError = uiState.errorMessage != null
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Campo de Contraseña con toggle de visibilidad
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Contraseña") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = if (passwordVisible)
-                    VisualTransformation.None
-                else
-                    PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            imageVector = if (passwordVisible)
-                                Icons.Default.Visibility
-                            else
-                                Icons.Default.VisibilityOff,
-                            contentDescription = if (passwordVisible)
-                                "Ocultar contraseña"
-                            else
-                                "Mostrar contraseña"
-                        )
-                    }
-                },
-                isError = uiState.errorMessage != null
-            )
-
-            // Mensaje de error si existe
-            if (uiState.errorMessage != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = uiState.errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Start
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Botón de Login con indicador de carga
-            Button(
-                onClick = {
-                    viewModel.login(
-                        email = email,
-                        password = password,
-                        navController = navController
-                    )
-                },
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank()
+                    .size(120.dp)
+                    .padding(bottom = 16.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     Text(
-                        text = "Iniciar Sesión",
-                        fontSize = 16.sp
+                        text = "LOGO",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Información adicional (opcional)
+            // ========== TÍTULO ==========
             Text(
-                text = "Versión 1.0 - Grupo 5",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "FotomarWMS",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
+
+            Text(
+                text = "Sistema de Gestión de Bodega",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 32.dp)
+            )
+
+            // ========== FORMULARIO ==========
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Text(
+                        text = "Iniciar Sesión",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+
+                    // Campo Email
+                    AppTextField(
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            emailError = null
+                        },
+                        label = "Correo electrónico",
+                        placeholder = "ejemplo@fotomar.cl",
+                        leadingIcon = Icons.Default.Email,
+                        isError = emailError != null,
+                        errorMessage = emailError,
+                        imeAction = ImeAction.Next,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Campo Password
+                    PasswordTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            passwordError = null
+                        },
+                        isError = passwordError != null,
+                        errorMessage = passwordError,
+                        imeAction = ImeAction.Done,
+                        onImeAction = {
+                            // Validar y hacer login al presionar Done
+                            if (validateAndLogin(
+                                    email = email,
+                                    password = password,
+                                    onEmailError = { emailError = it },
+                                    onPasswordError = { passwordError = it },
+                                    onLogin = { authViewModel.login(email, password) }
+                                )) {
+                                // Login iniciado
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Botón de Login
+                    PrimaryButton(
+                        text = "Ingresar",
+                        onClick = {
+                            validateAndLogin(
+                                email = email,
+                                password = password,
+                                onEmailError = { emailError = it },
+                                onPasswordError = { passwordError = it },
+                                onLogin = { authViewModel.login(email, password) }
+                            )
+                        },
+                        enabled = authState !is AuthState.Loading,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Indicador de carga
+                    if (authState is AuthState.Loading) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ========== INFORMACIÓN DE USUARIOS DE PRUEBA ==========
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "👤 Usuarios de prueba:",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    TestUserInfo("admin@fotomar.cl", "Administrador")
+                    TestUserInfo("jefe@fotomar.cl", "Jefe de Bodega")
+                    TestUserInfo("supervisor@fotomar.cl", "Supervisor")
+                    TestUserInfo("operador@fotomar.cl", "Operador")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Contraseña: cualquiera",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
+    }
+}
+
+/**
+ * Función para validar campos y ejecutar login
+ * @return true si la validación es exitosa
+ */
+private fun validateAndLogin(
+    email: String,
+    password: String,
+    onEmailError: (String?) -> Unit,
+    onPasswordError: (String?) -> Unit,
+    onLogin: () -> Unit
+): Boolean {
+    var isValid = true
+
+    // Validar email
+    if (email.isBlank()) {
+        onEmailError("El correo es obligatorio")
+        isValid = false
+    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        onEmailError("Correo electrónico inválido")
+        isValid = false
+    } else {
+        onEmailError(null)
+    }
+
+    // Validar password
+    if (password.isBlank()) {
+        onPasswordError("La contraseña es obligatoria")
+        isValid = false
+    } else if (password.length < 3) {
+        onPasswordError("La contraseña debe tener al menos 3 caracteres")
+        isValid = false
+    } else {
+        onPasswordError(null)
+    }
+
+    // Si todo es válido, ejecutar login
+    if (isValid) {
+        onLogin()
+    }
+
+    return isValid
+}
+
+/**
+ * Componente para mostrar información de usuario de prueba
+ */
+@Composable
+private fun TestUserInfo(email: String, role: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "•",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        Text(
+            text = email,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = role,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }

@@ -1,10 +1,8 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,151 +10,261 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.model.Mensaje
-import com.pneuma.fotomarwms_grupo5.model.Tarea
-import com.pneuma.fotomarwms_grupo5.model.PrioridadTarea
-import com.pneuma.fotomarwms_grupo5.navigation.Screen
-import com.pneuma.fotomarwms_grupo5.viewmodels.DashboardOperadorViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.UiState
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.MensajeViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Dashboard principal para usuarios con rol OPERADOR
+ * Dashboard para rol OPERADOR
  *
- * Muestra:
+ * Funcionalidades principales:
  * - Mensajes del jefe de bodega
  * - Tareas pendientes asignadas
- * - Acciones rápidas (Buscar producto, Solicitar movimiento)
+ * - Acciones rápidas (buscar productos, solicitar movimientos)
+ * - Estado de mis solicitudes
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardOperadorScreen(
-    navController: NavController,
-    viewModel: DashboardOperadorViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    mensajeViewModel: MensajeViewModel,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Estados
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+    val resumenMensajes by mensajeViewModel.resumenState.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Drawer lateral con menú contextual
+    // Cargar resumen al iniciar
+    LaunchedEffect(Unit) {
+        mensajeViewModel.getResumenMensajes()
+    }
+
+    // Drawer con menú lateral
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            DrawerOperador(
-                onNavigate = { screen ->
+            DrawerContent(
+                currentUser = currentUser,
+                currentRoute = "dashboard_operador",
+                onNavigate = { route ->
                     scope.launch {
                         drawerState.close()
-                        navController.navigate(screen.route)
+                        onNavigate(route)
                     }
+                },
+                onLogout = {
+                    authViewModel.logout()
+                    onNavigate("login")
                 }
             )
         }
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { Text("FotomarWMS") },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menú")
-                        }
+                AppTopBar(
+                    title = "Dashboard Operador",
+                    onMenuClick = {
+                        scope.launch { drawerState.open() }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                )
-            }
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Saludo personalizado
-                item {
-                    Text(
-                        text = "Bienvenido, ${uiState.nombreUsuario}",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Mensaje del Jefe (si existe)
-                item {
-                    if (uiState.mensajeDelJefe != null) {
-                        MensajeDelJefeCard(mensaje = uiState.mensajeDelJefe!!)
-                    }
-                }
-
-                // Tareas Pendientes
-                item {
-                    Text(
-                        text = "Tareas Pendientes",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                if (uiState.tareasPendientes.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        ) {
-                            Text(
-                                text = "No hay tareas pendientes",
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    actions = {
+                        // Badge de mensajes no leídos
+                        when (val state = resumenMensajes) {
+                            is UiState.Success -> {
+                                if (state.data.totalNoLeidos > 0) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge {
+                                                Text(state.data.totalNoLeidos.toString())
+                                            }
+                                        }
+                                    ) {
+                                        IconButton(onClick = { onNavigate("mensajes") }) {
+                                            Icon(
+                                                Icons.Default.Email,
+                                                contentDescription = "Mensajes"
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            else -> {}
                         }
                     }
-                } else {
-                    items(uiState.tareasPendientes) { tarea ->
-                        TareaCard(tarea = tarea)
+                )
+            }
+        ) { paddingValues ->
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                // ========== SALUDO ==========
+                Text(
+                    text = "Bienvenido, Operador",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = currentUser?.nombre ?: "",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+
+                // ========== MENSAJE DEL JEFE ==========
+                when (val state = resumenMensajes) {
+                    is UiState.Success -> {
+                        if (state.data.ultimoMensaje != null) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                                ),
+                                onClick = { onNavigate("mensajes") }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Email,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "📬 Mensaje del Jefe",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        text = state.data.ultimoMensaje.titulo,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+
+                                    Text(
+                                        text = state.data.ultimoMensaje.contenido.take(100) + "...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        text = "Hace 2 horas", // TODO: Calcular tiempo real
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
+                    else -> {}
                 }
 
-                // Acciones Rápidas
-                item {
-                    Text(
-                        text = "Acciones Rápidas",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
+                // ========== TAREAS PENDIENTES ==========
+                Text(
+                    text = "Tareas Pendientes",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Tarea 1
+                TaskCard(
+                    icon = Icons.Default.Checklist,
+                    title = "Conteo físico - Sección A",
+                    description = "Realizar conteo completo de productos en estantes A-1 a A-5",
+                    priority = "ALTA",
+                    onClick = { onNavigate("inventario") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Tarea 2
+                TaskCard(
+                    icon = Icons.Default.LocationOn,
+                    title = "Ubicar productos recibidos",
+                    description = "Asignar ubicación a 15 productos nuevos en bodega",
+                    priority = "MEDIA",
+                    onClick = { onNavigate("gestion_ubicaciones") }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ========== ACCIONES RÁPIDAS ==========
+                Text(
+                    text = "Acciones Rápidas",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Buscar Producto
+                    QuickActionCard(
+                        icon = Icons.Default.Search,
+                        text = "Buscar Producto",
+                        onClick = { onNavigate("busqueda") },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Solicitar Movimiento
+                    QuickActionCard(
+                        icon = Icons.Default.AddCircle,
+                        text = "Solicitar Movimiento",
+                        onClick = { onNavigate("solicitud_movimiento") },
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        AccionRapidaCard(
-                            titulo = "Buscar Producto",
-                            icono = Icons.Default.Search,
-                            modifier = Modifier.weight(1f),
-                            onClick = { navController.navigate(Screen.Busqueda.route) }
-                        )
+                Spacer(modifier = Modifier.height(12.dp))
 
-                        AccionRapidaCard(
-                            titulo = "Solicitar Movimiento",
-                            icono = Icons.Default.MoveToInbox,
-                            modifier = Modifier.weight(1f),
-                            onClick = { navController.navigate(Screen.SolicitudMovimiento.route) }
-                        )
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Ver Mis Solicitudes
+                    QuickActionCard(
+                        icon = Icons.Default.List,
+                        text = "Mis Solicitudes",
+                        onClick = { onNavigate("mis_solicitudes") },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Inventario
+                    QuickActionCard(
+                        icon = Icons.Default.Inventory,
+                        text = "Inventario",
+                        onClick = { onNavigate("inventario") },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
@@ -164,203 +272,110 @@ fun DashboardOperadorScreen(
 }
 
 /**
- * Card que muestra un mensaje importante del jefe de bodega
+ * Tarjeta de tarea pendiente
  */
 @Composable
-fun MensajeDelJefeCard(mensaje: Mensaje) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE3F2FD) // Azul claro
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Icon(
-                imageVector = Icons.Default.Message,
-                contentDescription = "Mensaje",
-                tint = Color(0xFF1976D2),
-                modifier = Modifier.size(24.dp)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column {
-                Text(
-                    text = "Mensaje del Jefe",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1976D2),
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = mensaje.contenido,
-                    fontSize = 13.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Hace ${mensaje.fecha} horas",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+private fun TaskCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    priority: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val priorityColor = when (priority) {
+        "ALTA" -> Color(0xFFD32F2F)
+        "MEDIA" -> Color(0xFFF57C00)
+        else -> Color(0xFF388E3C)
     }
-}
 
-/**
- * Card que representa una tarea asignada
- */
-@Composable
-fun TareaCard(tarea: Tarea) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when (tarea.prioridad) {
-                PrioridadTarea.ALTA -> Color(0xFFFFEBEE) // Rojo claro
-                else -> MaterialTheme.colorScheme.surface
-            }
-        )
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Indicador de prioridad
             Icon(
-                imageVector = when (tarea.prioridad) {
-                    PrioridadTarea.ALTA -> Icons.Default.PriorityHigh
-                    else -> Icons.Default.Circle
-                },
-                contentDescription = "Prioridad",
-                tint = when (tarea.prioridad) {
-                    PrioridadTarea.ALTA -> Color.Red
-                    else -> Color(0xFFFFA726)
-                },
-                modifier = Modifier.size(20.dp)
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = priorityColor
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = tarea.descripcion,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp
-                )
-                if (tarea.ubicacion != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Ubicación: ${tarea.ubicacion}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = priorityColor.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = priority,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = priorityColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
+
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }
 }
 
 /**
- * Card para acciones rápidas del dashboard
+ * Tarjeta de acción rápida compacta
  */
 @Composable
-fun AccionRapidaCard(
-    titulo: String,
-    icono: ImageVector,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+private fun QuickActionCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
+        onClick = onClick,
         modifier = modifier
-            .height(100.dp)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = icono,
-                contentDescription = titulo,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp)
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = titulo,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
             )
         }
     }
-}
-
-/**
- * Drawer lateral con opciones de navegación para operador
- */
-@Composable
-fun DrawerOperador(onNavigate: (Screen) -> Unit) {
-    ModalDrawerSheet {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Menú Operador",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            DrawerItem(
-                text = "Buscar Producto",
-                icon = Icons.Default.Search,
-                onClick = { onNavigate(Screen.Busqueda) }
-            )
-
-            DrawerItem(
-                text = "Solicitar Movimiento",
-                icon = Icons.Default.MoveToInbox,
-                onClick = { onNavigate(Screen.SolicitudMovimiento) }
-            )
-
-            DrawerItem(
-                text = "Mensajes",
-                icon = Icons.Default.Message,
-                onClick = { onNavigate(Screen.Mensajes) }
-            )
-
-            DrawerItem(
-                text = "Inventario",
-                icon = Icons.Default.Inventory,
-                onClick = { onNavigate(Screen.Inventario) }
-            )
-
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            DrawerItem(
-                text = "Mi Perfil",
-                icon = Icons.Default.Person,
-                onClick = { onNavigate(Screen.Perfil) }
-            )
-        }
-    }
-}
-
-@Composable
-fun DrawerItem(text: String, icon: ImageVector, onClick: () -> Unit) {
-    NavigationDrawerItem(
-        label = { Text(text) },
-        icon = { Icon(icon, contentDescription = text) },
-        selected = false,
-        onClick = onClick,
-        modifier = Modifier.padding(vertical = 4.dp)
-    )
 }

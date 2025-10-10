@@ -1,10 +1,8 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,380 +12,432 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.model.DiferenciaInventario
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.UiState
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.InventarioViewModel
+import kotlinx.coroutines.launch
 
 /**
- * Pantalla de inventario con cuadre de diferencias
+ * Pantalla de Inventario
  *
- * Permite:
- * - Ver progreso del inventario por piso
- * - Registrar conteo físico vs sistema
- * - Detectar y registrar diferencias
- * - Requiere aprobación para ajustes
+ * Funcionalidades:
+ * - Ver progreso del inventario actual
+ * - Registrar conteo físico de productos
+ * - Ver diferencias entre sistema y físico
+ * - Finalizar inventario (solo Jefe/Supervisor)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InventarioScreen(
-    navController: NavController,
-    viewModel: InventarioViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    inventarioViewModel: InventarioViewModel,
+    onNavigateToDiferencias: () -> Unit,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Estados
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+    val progresoState by inventarioViewModel.progresoState.collectAsStateWithLifecycle()
+    val conteoState by inventarioViewModel.conteoState.collectAsStateWithLifecycle()
+    val finalizarState by inventarioViewModel.finalizarState.collectAsStateWithLifecycle()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    // Estado para el diálogo de conteo
-    var mostrarDialogoConteo by remember { mutableStateOf(false) }
-    var pisoSeleccionado by remember { mutableStateOf("A") }
+    // Estados de formulario de conteo
+    var showConteoDialog by remember { mutableStateOf(false) }
+    var sku by remember { mutableStateOf("") }
+    var idUbicacion by remember { mutableStateOf("") }
+    var cantidadFisica by remember { mutableStateOf("") }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Inventario") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+    // Estados de UI
+    var showFinalizarDialog by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+
+    // Cargar progreso al iniciar
+    LaunchedEffect(Unit) {
+        inventarioViewModel.getProgreso()
+    }
+
+    // Manejar éxito de conteo
+    LaunchedEffect(conteoState) {
+        when (val state = conteoState) {
+            is UiState.Success -> {
+                showSuccessDialog = true
+                sku = ""
+                idUbicacion = ""
+                cantidadFisica = ""
+                showConteoDialog = false
+                inventarioViewModel.clearConteoState()
+            }
+            else -> {}
+        }
+    }
+
+    // Manejar éxito de finalización
+    LaunchedEffect(finalizarState) {
+        when (val state = finalizarState) {
+            is UiState.Success -> {
+                showSuccessDialog = true
+                inventarioViewModel.clearFinalizarState()
+            }
+            else -> {}
+        }
+    }
+
+    // Diálogos
+    SuccessDialog(
+        message = "Operación completada exitosamente",
+        onDismiss = {
+            showSuccessDialog = false
+            inventarioViewModel.getProgreso()
+        },
+        showDialog = showSuccessDialog
+    )
+
+    ConfirmDialog(
+        title = "Finalizar Inventario",
+        message = "¿Estás seguro de finalizar el inventario? Esta acción ajustará todos los stocks del sistema según los conteos físicos registrados.",
+        onConfirm = {
+            inventarioViewModel.finalizarInventario()
+            showFinalizarDialog = false
+        },
+        onDismiss = { showFinalizarDialog = false },
+        showDialog = showFinalizarDialog
+    )
+
+    // Drawer con menú lateral
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            DrawerContent(
+                currentUser = currentUser,
+                currentRoute = "inventario",
+                onNavigate = { route ->
+                    scope.launch {
+                        drawerState.close()
+                        onNavigateBack()
                     }
                 },
-                actions = {
-                    // Botón para iniciar nuevo conteo con cámara
-                    IconButton(onClick = { mostrarDialogoConteo = true }) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Iniciar conteo")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                onLogout = {
+                    authViewModel.logout()
+                    onNavigateBack()
+                }
             )
         }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Título y descripción
-            item {
-                Text(
-                    text = "Control de Inventario",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+    ) {
+        Scaffold(
+            topBar = {
+                AppTopBar(
+                    title = "Inventario",
+                    onMenuClick = {
+                        scope.launch { drawerState.open() }
+                    }
                 )
-                Text(
-                    text = "Realiza el conteo físico y registra las diferencias encontradas",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            floatingActionButton = {
+                ActionFab(
+                    onClick = { showConteoDialog = true },
+                    icon = Icons.Default.Add,
+                    contentDescription = "Registrar conteo"
                 )
             }
+        ) { paddingValues ->
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                when (val state = progresoState) {
+                    is UiState.Loading -> {
+                        LoadingState(message = "Cargando progreso...")
+                    }
 
-            // Progreso general
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    is UiState.Success -> {
+                        val progreso = state.data
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp)
                         ) {
-                            Column {
-                                Text(
-                                    text = "Progreso Total",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = "${uiState.porcentajeCompletado}%",
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            // ========== PROGRESO GENERAL ==========
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Progreso del Inventario",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(bottom = 16.dp)
+                                    )
+
+                                    CircularProgressIndicatorWithPercentage(
+                                        percentage = progreso.porcentajeCompletado.toFloat(),
+                                        size = 140
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        StatColumn(
+                                            label = "Contadas",
+                                            value = progreso.ubicacionesContadas.toString(),
+                                            color = Color(0xFF4CAF50)
+                                        )
+
+                                        StatColumn(
+                                            label = "Pendientes",
+                                            value = progreso.ubicacionesPendientes.toString(),
+                                            color = Color(0xFFF57C00)
+                                        )
+
+                                        StatColumn(
+                                            label = "Total",
+                                            value = progreso.totalUbicaciones.toString(),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
                             }
 
-                            CircularProgressIndicator(
-                                progress = uiState.porcentajeCompletado / 100f,
-                                modifier = Modifier.size(64.dp),
-                                strokeWidth = 6.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            // ========== DIFERENCIAS ==========
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Diferencias Encontradas",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+
+                                        TextButton(onClick = onNavigateToDiferencias) {
+                                            Text("Ver todas")
+                                            Icon(
+                                                imageVector = Icons.Default.ChevronRight,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    DifferenceRow(
+                                        label = "Ubicaciones con diferencias",
+                                        value = progreso.ubicacionesConDiferencias.toString(),
+                                        icon = Icons.Default.WarningAmber,
+                                        color = Color(0xFFF57C00)
+                                    )
+
+                                    DifferenceRow(
+                                        label = "Productos faltantes",
+                                        value = progreso.totalFaltantes.toString(),
+                                        icon = Icons.Default.Remove,
+                                        color = Color(0xFFD32F2F)
+                                    )
+
+                                    DifferenceRow(
+                                        label = "Productos sobrantes",
+                                        value = progreso.totalSobrantes.toString(),
+                                        icon = Icons.Default.Add,
+                                        color = Color(0xFF388E3C)
+                                    )
+                                }
+                            }
+
+                            // ========== BOTÓN FINALIZAR ==========
+                            if (authViewModel.isJefeOrAbove()) {
+                                PrimaryButton(
+                                    text = "Finalizar Inventario",
+                                    onClick = { showFinalizarDialog = true },
+                                    icon = Icons.Default.Check,
+                                    enabled = progreso.porcentajeCompletado == 100.0 &&
+                                            finalizarState !is UiState.Loading
+                                )
+
+                                if (progreso.porcentajeCompletado < 100.0) {
+                                    Text(
+                                        text = "Completa el 100% del inventario para poder finalizarlo",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+                            }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        LinearProgressIndicator(
-                            progress = uiState.porcentajeCompletado / 100f,
-                            modifier = Modifier.fillMaxWidth()
+                    is UiState.Error -> {
+                        ErrorState(
+                            message = state.message,
+                            onRetry = { inventarioViewModel.getProgreso() }
                         )
                     }
-                }
-            }
 
-            // Progreso por piso
-            item {
-                Text(
-                    text = "Progreso por Piso",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            items(uiState.progresosPiso) { progreso ->
-                ProgresoPisoCard(
-                    piso = progreso.piso,
-                    porcentaje = progreso.porcentaje,
-                    contados = progreso.contados,
-                    total = progreso.total,
-                    onClick = { pisoSeleccionado = progreso.piso; mostrarDialogoConteo = true }
-                )
-            }
-
-            // Diferencias encontradas
-            if (uiState.diferencias.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Diferencias Encontradas (${uiState.diferencias.size})",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                items(uiState.diferencias) { diferencia ->
-                    DiferenciaCard(diferencia = diferencia)
-                }
-            }
-
-            // Botón para finalizar inventario
-            if (uiState.porcentajeCompletado == 100f) {
-                item {
-                    Button(
-                        onClick = { viewModel.finalizarInventario() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Finalizar Inventario")
-                    }
+                    is UiState.Idle -> {}
                 }
             }
         }
     }
 
-    // Diálogo para iniciar conteo
-    if (mostrarDialogoConteo) {
-        AlertDialog(
-            onDismissRequest = { mostrarDialogoConteo = false },
-            title = { Text("Iniciar Conteo - Piso $pisoSeleccionado") },
-            text = { Text("¿Deseas escanear productos o ingresar manualmente?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    // TODO: Abrir escáner
-                    mostrarDialogoConteo = false
-                }) {
-                    Text("Escanear")
+    // ========== DIÁLOGO DE REGISTRO DE CONTEO ==========
+    if (showConteoDialog) {
+        ConteoDialog(
+            sku = sku,
+            onSkuChange = { sku = it },
+            idUbicacion = idUbicacion,
+            onIdUbicacionChange = { idUbicacion = it },
+            cantidadFisica = cantidadFisica,
+            onCantidadFisicaChange = { cantidadFisica = it },
+            onConfirm = {
+                if (sku.isNotBlank() && idUbicacion.isNotBlank() && cantidadFisica.isNotBlank()) {
+                    inventarioViewModel.registrarConteo(
+                        sku = sku,
+                        idUbicacion = idUbicacion.toInt(),
+                        cantidadFisica = cantidadFisica.toInt()
+                    )
                 }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    // TODO: Abrir formulario manual
-                    mostrarDialogoConteo = false
-                }) {
-                    Text("Manual")
-                }
-            }
+            onDismiss = {
+                showConteoDialog = false
+                sku = ""
+                idUbicacion = ""
+                cantidadFisica = ""
+            },
+            isLoading = conteoState is UiState.Loading
         )
     }
 }
 
-/**
- * Card de progreso por piso
- */
 @Composable
-fun ProgresoPisoCard(
-    piso: String,
-    porcentaje: Float,
-    contados: Int,
-    total: Int,
-    onClick: () -> Unit
+private fun StatColumn(label: String, value: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun DifferenceRow(
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Badge del piso
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(
-                        color = when (piso) {
-                            "A" -> Color(0xFF42A5F5)
-                            "B" -> Color(0xFF66BB6A)
-                            "C" -> Color(0xFFFFA726)
-                            else -> MaterialTheme.colorScheme.primary
-                        },
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Piso $piso",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Piso $piso",
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "$contados/$total",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LinearProgressIndicator(
-                    progress = porcentaje / 100f,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "${porcentaje.toInt()}% completado",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
     }
 }
 
-/**
- * Card de diferencia encontrada
- */
 @Composable
-fun DiferenciaCard(diferencia: DiferenciaInventario) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFEBEE) // Rojo claro
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Diferencia",
-                        tint = Color(0xFFEF5350)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = diferencia.sku,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                }
-
-                Badge(
-                    containerColor = if (diferencia.diferencia > 0)
-                        Color(0xFF66BB6A)
-                    else
-                        Color(0xFFEF5350)
-                ) {
-                    Text(
-                        text = if (diferencia.diferencia > 0)
-                            "+${diferencia.diferencia}"
-                        else
-                            diferencia.diferencia.toString(),
-                        color = Color.White
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = diferencia.descripcion,
-                fontSize = 13.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Sistema",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = diferencia.cantidadSistema.toString(),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = "vs",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+private fun ConteoDialog(
+    sku: String,
+    onSkuChange: (String) -> Unit,
+    idUbicacion: String,
+    onIdUbicacionChange: (String) -> Unit,
+    cantidadFisica: String,
+    onCantidadFisicaChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    isLoading: Boolean
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(Icons.Default.Inventory, contentDescription = null)
+        },
+        title = {
+            Text("Registrar Conteo")
+        },
+        text = {
+            Column {
+                AppTextField(
+                    value = sku,
+                    onValueChange = onSkuChange,
+                    label = "SKU",
+                    placeholder = "AP30001"
                 )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Físico",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = diferencia.cantidadFisico.toString(),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            if (diferencia.ubicacion.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Ubicación: ${diferencia.ubicacion}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                NumberTextField(
+                    value = idUbicacion,
+                    onValueChange = onIdUbicacionChange,
+                    label = "ID Ubicación",
+                    placeholder = "12"
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                NumberTextField(
+                    value = cantidadFisica,
+                    onValueChange = onCantidadFisicaChange,
+                    label = "Cantidad Física",
+                    placeholder = "0"
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !isLoading && sku.isNotBlank() &&
+                        idUbicacion.isNotBlank() && cantidadFisica.isNotBlank()
+            ) {
+                Text("Registrar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
             }
         }
-    }
+    )
 }

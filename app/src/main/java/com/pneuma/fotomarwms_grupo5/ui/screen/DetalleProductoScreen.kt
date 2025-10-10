@@ -1,9 +1,7 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,192 +9,296 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.model.Producto
-import com.pneuma.fotomarwms_grupo5.model.ProductoUbicacion
-import java.text.SimpleDateFormat
-import java.util.Locale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.UiState
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.ProductoViewModel
 
 /**
- * Pantalla de Detalle de un Producto específico
+ * Pantalla de Detalle de Producto
  *
- * Muestra:
- * - Información completa del producto
- * - Stock y ubicaciones
- * - Códigos de barras y LPN
- * - Fecha de vencimiento si aplica
+ * Muestra información completa del producto:
+ * - SKU, descripción, stock
+ * - Códigos de barras (individual y LPN)
+ * - Fecha de vencimiento (si aplica)
+ * - Lista de ubicaciones donde se encuentra
+ * - Historial de movimientos (TODO)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalleProductoScreen(
-    navController: NavController,
-    sku: String
+    sku: String,
+    productoViewModel: ProductoViewModel,
+    onNavigateBack: () -> Unit,
+    onNavigateToUbicacion: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    // TODO: Obtener producto desde ViewModel basado en SKU
-    // Por ahora usamos datos de prueba
-    val producto = remember {
-        Producto(
-            sku = sku,
-            descripcion = "Canon EOS R5 - Cámara Mirrorless Full Frame 45MP",
-            stock = 15,
-            codigoBarrasIndividual = "1234567890123",
-            lpn = "LPN-CAM-001",
-            lpnDesc = "Caja de cámaras Canon",
-            ubicaciones = listOf(
-                ProductoUbicacion(1, "A13", 10),
-                ProductoUbicacion(2, "B05", 5)
-            )
-        )
+    // Estados
+    val productoDetailState by productoViewModel.productoDetailState.collectAsStateWithLifecycle()
+    val selectedProducto by productoViewModel.selectedProducto.collectAsStateWithLifecycle()
+
+    // Cargar detalle del producto al iniciar
+    LaunchedEffect(sku) {
+        productoViewModel.getProductoDetail(sku)
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Detalle de Producto") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            BackTopBar(
+                title = "Detalle del Producto",
+                onBackClick = onNavigateBack
             )
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
+    ) { paddingValues ->
+        Box(
+            modifier = modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(paddingValues)
         ) {
-            // SKU y Stock
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = producto.sku,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+            when (val state = productoDetailState) {
+                is UiState.Loading -> {
+                    LoadingState(message = "Cargando producto...")
+                }
+
+                is UiState.Success -> {
+                    val producto = state.data
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Inventory,
-                            contentDescription = "Stock",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Stock: ${producto.stock} unidades",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
-            // Descripción
-            InfoCard(
-                titulo = "Descripción",
-                icono = Icons.Default.Description
-            ) {
-                Text(text = producto.descripcion, fontSize = 14.sp)
-            }
-
-            // Códigos
-            InfoCard(
-                titulo = "Códigos",
-                icono = Icons.Default.QrCode
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (producto.codigoBarrasIndividual != null) {
-                        InfoRow(
-                            label = "Código de Barras:",
-                            value = producto.codigoBarrasIndividual
-                        )
-                    }
-                    if (producto.lpn != null) {
-                        InfoRow(label = "LPN:", value = producto.lpn)
-                    }
-                    if (producto.lpnDesc != null) {
-                        InfoRow(label = "Descripción LPN:", value = producto.lpnDesc)
-                    }
-                }
-            }
-
-            // Ubicaciones
-            InfoCard(
-                titulo = "Ubicaciones",
-                icono = Icons.Default.LocationOn
-            ) {
-                if (producto.ubicaciones.isEmpty()) {
-                    Text(
-                        text = "Sin ubicaciones asignadas",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        producto.ubicaciones.forEach { ubicacion ->
-                            UbicacionItem(ubicacion)
-                        }
-                    }
-                }
-            }
-
-            // Vencimiento si aplica
-            if (producto.fechaVencimiento != null) {
-                InfoCard(
-                    titulo = "Fecha de Vencimiento",
-                    icono = Icons.Default.CalendarToday
-                ) {
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    Text(
-                        text = dateFormat.format(producto.fechaVencimiento),
-                        fontSize = 14.sp
-                    )
-                    if (producto.vencimientoCercano) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    color = Color(0xFFFFF9C4),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // ========== INFORMACIÓN PRINCIPAL ==========
+                        Card(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "Alerta",
-                                tint = Color(0xFFF57C00)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Vencimiento próximo (menos de 2 meses)",
-                                fontSize = 13.sp,
-                                color = Color(0xFFF57C00)
-                            )
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                // SKU
+                                Text(
+                                    text = producto.sku,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+
+                                // Descripción
+                                Text(
+                                    text = producto.descripcion,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Badge de stock
+                                StockBadge(stock = producto.stock)
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // ========== CÓDIGOS ==========
+                        Card(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCode,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Códigos",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Código de barras individual
+                                DetailRow(
+                                    label = "Código Individual",
+                                    value = producto.codigoBarrasIndividual ?: "No disponible"
+                                )
+
+                                // LPN
+                                DetailRow(
+                                    label = "LPN (Código de Caja)",
+                                    value = producto.lpn ?: "No disponible"
+                                )
+
+                                if (producto.lpnDesc != null) {
+                                    DetailRow(
+                                        label = "Descripción LPN",
+                                        value = producto.lpnDesc
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // ========== FECHA DE VENCIMIENTO ==========
+                        if (producto.fechaVencimiento != null) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (producto.vencimientoCercano)
+                                        MaterialTheme.colorScheme.errorContainer
+                                    else
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (producto.vencimientoCercano)
+                                            Icons.Default.Warning
+                                        else
+                                            Icons.Default.CalendarToday,
+                                        contentDescription = null,
+                                        tint = if (producto.vencimientoCercano)
+                                            MaterialTheme.colorScheme.error
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column {
+                                        Text(
+                                            text = if (producto.vencimientoCercano)
+                                                "⚠️ Vencimiento Cercano"
+                                            else
+                                                "Fecha de Vencimiento",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (producto.vencimientoCercano)
+                                                MaterialTheme.colorScheme.error
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = producto.fechaVencimiento,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // ========== UBICACIONES ==========
+                        Card(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Ubicaciones",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                if (producto.ubicaciones.isNullOrEmpty()) {
+                                    Text(
+                                        text = "Sin ubicación asignada",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    producto.ubicaciones.forEach { ubicacion ->
+                                        Card(
+                                            onClick = {
+                                                onNavigateToUbicacion(ubicacion.codigoUbicacion)
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column {
+                                                    Text(
+                                                        text = ubicacion.codigoUbicacion,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    Text(
+                                                        text = "Cantidad: ${ubicacion.cantidadEnUbicacion}",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        modifier = Modifier.padding(top = 4.dp)
+                                                    )
+                                                }
+
+                                                Icon(
+                                                    imageVector = Icons.Default.ChevronRight,
+                                                    contentDescription = "Ver ubicación"
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // ========== ACCIONES ==========
+                        // TODO: Agregar botones de acción según el rol
+                        // - Jefe: Editar, Eliminar, Registrar movimiento
+                        // - Operador: Solicitar movimiento
                     }
+                }
+
+                is UiState.Error -> {
+                    ErrorState(
+                        message = state.message,
+                        onRetry = {
+                            productoViewModel.getProductoDetail(sku)
+                        }
+                    )
+                }
+
+                is UiState.Idle -> {
+                    // No mostrar nada en estado Idle
                 }
             }
         }
@@ -204,101 +306,31 @@ fun DetalleProductoScreen(
 }
 
 /**
- * Card de información reutilizable
+ * Fila de detalle (label + value)
  */
 @Composable
-fun InfoCard(
-    titulo: String,
-    icono: ImageVector,
-    content: @Composable () -> Unit
+private fun DetailRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icono,
-                    contentDescription = titulo,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = titulo,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            content()
-        }
-    }
-}
-
-/**
- * Fila de información label-value
- */
-@Composable
-fun InfoRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             text = label,
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
         )
         Text(
             text = value,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
         )
-    }
-}
-
-/**
- * Item de ubicación con cantidad
- */
-@Composable
-fun UbicacionItem(ubicacion: ProductoUbicacion) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Place,
-                    contentDescription = "Ubicación",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = ubicacion.codigoUbicacion,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary
-            ) {
-                Text(
-                    text = "${ubicacion.cantidadEnUbicacion} uds",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
     }
 }

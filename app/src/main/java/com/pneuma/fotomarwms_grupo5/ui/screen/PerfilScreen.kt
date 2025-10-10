@@ -1,315 +1,361 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.model.UserRole
-import com.pneuma.fotomarwms_grupo5.navigation.Screen
-import com.pneuma.fotomarwms_grupo5.viewmodels.PerfilViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 
 /**
- * Pantalla de perfil del usuario
+ * Pantalla de Perfil del Usuario
  *
- * Muestra:
- * - Información del usuario (nombre, email, rol)
- * - Opciones de cuenta
+ * Funcionalidades:
+ * - Ver información del usuario actual
+ * - Ver rol y permisos
+ * - Cambiar contraseña
  * - Cerrar sesión
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PerfilScreen(
-    navController: NavController,
-    viewModel: PerfilViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    onNavigateToLogin: () -> Unit,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var mostrarDialogoCerrarSesion by remember { mutableStateOf(false) }
+    // Estados
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+
+    // Estados de UI
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+
+    // Diálogo de confirmación de cierre de sesión
+    ConfirmDialog(
+        title = "Cerrar Sesión",
+        message = "¿Estás seguro de que deseas cerrar sesión?",
+        onConfirm = {
+            authViewModel.logout()
+            onNavigateToLogin()
+        },
+        onDismiss = { showLogoutDialog = false },
+        showDialog = showLogoutDialog,
+        confirmText = "Cerrar Sesión",
+        dismissText = "Cancelar"
+    )
+
+    // Diálogo de información (cambio de contraseña no implementado)
+    InfoDialog(
+        title = "Cambiar Contraseña",
+        message = "Esta funcionalidad estará disponible próximamente.",
+        onDismiss = { showChangePasswordDialog = false },
+        showDialog = showChangePasswordDialog
+    )
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Mi Perfil") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            BackTopBar(
+                title = "Mi Perfil",
+                onBackClick = onNavigateBack
             )
         }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
                 .fillMaxSize()
-                .padding(padding),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
         ) {
-            // Header con avatar y nombre
-            item {
+            // ========== AVATAR Y NOMBRE ==========
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(32.dp),
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Avatar
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
+                    // Avatar grande
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(120.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Avatar",
-                            tint = Color.White,
-                            modifier = Modifier.size(56.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(64.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Nombre
                     Text(
-                        text = uiState.usuario?.nombre ?: "Usuario",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        text = currentUser?.nombre ?: "Usuario",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Email
+                    Text(
+                        text = currentUser?.email ?: "",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
 
-                    Badge(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ) {
-                        Text(
-                            text = when (uiState.usuario?.rol) {
-                                UserRole.ADMIN -> "ADMINISTRADOR"
-                                UserRole.JEFE -> "JEFE DE BODEGA"
-                                UserRole.SUPERVISOR -> "SUPERVISOR"
-                                UserRole.OPERADOR -> "OPERADOR"
-                                else -> "USUARIO"
-                            },
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                        )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Badge de rol
+                    currentUser?.let { user ->
+                        RolBadge(rol = user.rol)
                     }
                 }
             }
 
-            // Información de la cuenta
-            item {
-                Column(modifier = Modifier.padding(16.dp)) {
+            // ========== INFORMACIÓN DE LA CUENTA ==========
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
                     Text(
                         text = "Información de la Cuenta",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    InfoItem(
-                        icono = Icons.Default.Email,
-                        titulo = "Email",
-                        valor = uiState.usuario?.email ?: "-"
+                    ProfileInfoRow(
+                        icon = Icons.Default.Person,
+                        label = "Nombre",
+                        value = currentUser?.nombre ?: "N/A"
                     )
 
-                    InfoItem(
-                        icono = Icons.Default.Badge,
-                        titulo = "ID de Usuario",
-                        valor = uiState.usuario?.id?.toString() ?: "-"
+                    ProfileInfoRow(
+                        icon = Icons.Default.Email,
+                        label = "Email",
+                        value = currentUser?.email ?: "N/A"
                     )
 
-                    InfoItem(
-                        icono = Icons.Default.CheckCircle,
-                        titulo = "Estado",
-                        valor = if (uiState.usuario?.activo == true) "Activo" else "Inactivo",
-                        color = if (uiState.usuario?.activo == true) Color(0xFF66BB6A) else Color(0xFFEF5350)
-                    )
-                }
-            }
-
-            // Opciones
-            item {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Opciones",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                    ProfileInfoRow(
+                        icon = Icons.Default.Badge,
+                        label = "Rol",
+                        value = when (currentUser?.rol?.name) {
+                            "ADMIN" -> "Administrador"
+                            "JEFE" -> "Jefe de Bodega"
+                            "SUPERVISOR" -> "Supervisor"
+                            "OPERADOR" -> "Operador"
+                            else -> "N/A"
+                        }
                     )
 
-                    OpcionItem(
-                        icono = Icons.Default.Lock,
-                        texto = "Cambiar Contraseña",
-                        onClick = { /* TODO: Implementar cambio de contraseña */ }
-                    )
-
-                    OpcionItem(
-                        icono = Icons.Default.Notifications,
-                        texto = "Notificaciones",
-                        onClick = { /* TODO: Configurar notificaciones */ }
-                    )
-
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    OpcionItem(
-                        icono = Icons.Default.Logout,
-                        texto = "Cerrar Sesión",
-                        color = MaterialTheme.colorScheme.error,
-                        onClick = { mostrarDialogoCerrarSesion = true }
+                    ProfileInfoRow(
+                        icon = Icons.Default.CheckCircle,
+                        label = "Estado",
+                        value = if (currentUser?.activo == true) "Activo" else "Inactivo"
                     )
                 }
             }
 
-            // Información de la app
-            item {
+            // ========== PERMISOS SEGÚN ROL ==========
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
                 Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "ℹ️ Tus Permisos",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    when (currentUser?.rol?.name) {
+                        "ADMIN" -> {
+                            PermissionItem("✓ Crear y gestionar usuarios")
+                            PermissionItem("✓ Acceso a reportes del sistema")
+                            PermissionItem("✓ Configuración general")
+                        }
+                        "JEFE" -> {
+                            PermissionItem("✓ Aprobar solicitudes sin restricciones")
+                            PermissionItem("✓ Registro directo de movimientos")
+                            PermissionItem("✓ Enviar mensajes a operadores")
+                            PermissionItem("✓ Gestión completa de ubicaciones")
+                        }
+                        "SUPERVISOR" -> {
+                            PermissionItem("✓ Aprobar solicitudes (notifica a jefe)")
+                            PermissionItem("✓ Registro directo de movimientos")
+                            PermissionItem("✓ Enviar mensajes a operadores")
+                        }
+                        "OPERADOR" -> {
+                            PermissionItem("✓ Buscar y consultar productos")
+                            PermissionItem("✓ Solicitar movimientos (requiere aprobación)")
+                            PermissionItem("✓ Realizar conteos de inventario")
+                            PermissionItem("✓ Ver mensajes del jefe")
+                        }
+                    }
+                }
+            }
+
+            // ========== ACCIONES ==========
+            Text(
+                text = "Acciones",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // Cambiar contraseña
+            Card(
+                onClick = { showChangePasswordDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "FotomarWMS v1.0",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
                     )
+                    Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "Desarrollado por Grupo 5",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Cambiar Contraseña",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-        }
-    }
 
-    // Diálogo de confirmación de cerrar sesión
-    if (mostrarDialogoCerrarSesion) {
-        AlertDialog(
-            onDismissRequest = { mostrarDialogoCerrarSesion = false },
-            title = { Text("Cerrar Sesión") },
-            text = { Text("¿Estás seguro de que quieres cerrar sesión?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    mostrarDialogoCerrarSesion = false
-                    // Navegar al login y limpiar el stack
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }) {
-                    Text("Cerrar Sesión", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarDialogoCerrarSesion = false }) {
-                    Text("Cancelar")
+            // Cerrar sesión
+            Card(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ExitToApp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "Cerrar Sesión",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
-        )
-    }
-}
 
-/**
- * Item de información del perfil
- */
-@Composable
-fun InfoItem(
-    icono: ImageVector,
-    titulo: String,
-    valor: String,
-    color: Color = MaterialTheme.colorScheme.onSurface
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icono,
-                contentDescription = titulo,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = titulo,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = valor,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = color
-                )
-            }
-        }
-    }
-}
+            Spacer(modifier = Modifier.height(16.dp))
 
-/**
- * Item de opción clickeable
- */
-@Composable
-fun OpcionItem(
-    icono: ImageVector,
-    texto: String,
-    color: Color = MaterialTheme.colorScheme.onSurface,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icono,
-                contentDescription = texto,
-                tint = color
-            )
-            Spacer(modifier = Modifier.width(16.dp))
+            // Versión de la app
             Text(
-                text = texto,
-                fontSize = 16.sp,
-                color = color,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Ir",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "FotomarWMS v1.0.0",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
     }
+}
+
+/**
+ * Fila de información del perfil
+ */
+@Composable
+private fun ProfileInfoRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+/**
+ * Item de permiso
+ */
+@Composable
+private fun PermissionItem(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.padding(vertical = 4.dp)
+    )
 }

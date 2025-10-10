@@ -1,136 +1,184 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.navigation.Screen
-import com.pneuma.fotomarwms_grupo5.viewmodels.DashboardAdminViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.UsuarioViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Dashboard principal para usuarios con rol ADMINISTRADOR
+ * Dashboard para rol ADMINISTRADOR
  *
- * Muestra:
- * - Estadísticas generales del sistema
- * - Acciones administrativas (gestionar usuarios, descargar reportes)
+ * Funcionalidades principales:
+ * - Visualización de estadísticas del sistema (usuarios activos, productos totales)
+ * - Acceso rápido a gestión de usuarios
+ * - Descarga de reportes del sistema
+ * - Configuración general
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardAdminScreen(
-    navController: NavController,
-    viewModel: DashboardAdminViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    usuarioViewModel: UsuarioViewModel,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Estados
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    // Drawer con menú lateral
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            DrawerAdmin(
-                onNavigate = { screen ->
+            DrawerContent(
+                currentUser = currentUser,
+                currentRoute = "dashboard_admin",
+                onNavigate = { route ->
                     scope.launch {
                         drawerState.close()
-                        navController.navigate(screen.route)
+                        onNavigate(route)
                     }
+                },
+                onLogout = {
+                    authViewModel.logout()
+                    onNavigate("login")
                 }
             )
         }
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { Text("FotomarWMS") },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menú")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                AppTopBar(
+                    title = "Dashboard Administrador",
+                    onMenuClick = {
+                        scope.launch { drawerState.open() }
+                    }
                 )
             }
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier
+        ) { paddingValues ->
+            Column(
+                modifier = modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
             ) {
-                // Saludo personalizado
-                item {
-                    Text(
-                        text = "Bienvenido, Administrador",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
+                // ========== SALUDO ==========
+                Text(
+                    text = "Bienvenido, ${currentUser?.nombre ?: "Administrador"}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = "Panel de control administrativo",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+
+                // ========== TARJETAS DE ESTADÍSTICAS ==========
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Tarjeta Usuarios Activos
+                    StatCard(
+                        icon = Icons.Default.Person,
+                        title = "Usuarios Activos",
+                        value = "24",
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Tarjeta Productos Totales
+                    StatCard(
+                        icon = Icons.Default.Inventory,
+                        title = "Productos",
+                        value = "1,247",
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
 
-                // Estadísticas del sistema
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        EstadisticaAdminCard(
-                            titulo = "Usuarios Activos",
-                            valor = uiState.usuariosActivos.toString(),
-                            icono = Icons.Default.People,
-                            color = Color(0xFF42A5F5),
-                            modifier = Modifier.weight(1f)
-                        )
+                // ========== ACCIONES RÁPIDAS ==========
+                Text(
+                    text = "Acciones Rápidas",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
 
-                        EstadisticaAdminCard(
-                            titulo = "Productos",
-                            valor = uiState.totalProductos.toString(),
-                            icono = Icons.Default.Inventory,
-                            color = Color(0xFF66BB6A),
-                            modifier = Modifier.weight(1f)
-                        )
+                // Gestionar Usuarios
+                ActionCard(
+                    icon = Icons.Default.ManageAccounts,
+                    title = "Gestionar Usuarios",
+                    description = "Crear, editar o eliminar usuarios del sistema",
+                    onClick = { onNavigate("gestion_usuarios") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Descargar Reportes
+                ActionCard(
+                    icon = Icons.Default.Assessment,
+                    title = "Descargar Reportes",
+                    description = "Generar reportes de inventario, movimientos y usuarios",
+                    onClick = {
+                        // TODO: Implementar descarga de reportes
                     }
-                }
+                )
 
-                // Acciones Rápidas
-                item {
-                    Text(
-                        text = "Acciones Rápidas",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Configuración del Sistema
+                ActionCard(
+                    icon = Icons.Default.Settings,
+                    title = "Configuración",
+                    description = "Configurar parámetros generales del sistema",
+                    onClick = { onNavigate("configuracion") }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ========== INFORMACIÓN DEL SISTEMA ==========
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
-                }
-
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AccionAdminButton(
-                            texto = "Gestionar Usuarios",
-                            icono = Icons.Default.ManageAccounts,
-                            onClick = { navController.navigate(Screen.GestionUsuarios.route) }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "ℹ️ Información del Sistema",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
                         )
 
-                        AccionAdminButton(
-                            texto = "Descargar Reportes",
-                            icono = Icons.Default.Download,
-                            onClick = { /* TODO: Implementar descarga de reportes */ }
-                        )
+                        InfoRow("Versión", "1.0.0")
+                        InfoRow("Última actualización", "09/10/2025")
+                        InfoRow("Base de datos", "MySQL 8.0")
+                        InfoRow("Estado del servidor", "✅ Operativo")
                     }
                 }
             }
@@ -139,45 +187,47 @@ fun DashboardAdminScreen(
 }
 
 /**
- * Card de estadística para el administrador
+ * Tarjeta de estadística compacta
  */
 @Composable
-fun EstadisticaAdminCard(
-    titulo: String,
-    valor: String,
-    icono: ImageVector,
-    color: Color,
-    modifier: Modifier = Modifier
+private fun StatCard(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    color: androidx.compose.ui.graphics.Color
 ) {
     Card(
-        modifier = modifier.height(140.dp),
+        modifier = modifier,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = color.copy(alpha = 0.1f)
         )
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = icono,
-                contentDescription = titulo,
-                tint = color,
-                modifier = Modifier.size(48.dp)
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = color
             )
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = valor,
-                fontSize = 32.sp,
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = color
             )
+
             Text(
-                text = titulo,
-                fontSize = 13.sp,
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -185,21 +235,19 @@ fun EstadisticaAdminCard(
 }
 
 /**
- * Botón de acción para el administrador
+ * Tarjeta de acción clickeable
  */
 @Composable
-fun AccionAdminButton(
-    texto: String,
-    icono: ImageVector,
-    onClick: () -> Unit
+private fun ActionCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -207,62 +255,69 @@ fun AccionAdminButton(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icono,
-                contentDescription = texto,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
-            )
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(56.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = texto,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Ir",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
 /**
- * Drawer lateral con opciones de navegación para administrador
+ * Fila de información clave-valor
  */
 @Composable
-fun DrawerAdmin(onNavigate: (Screen) -> Unit) {
-    ModalDrawerSheet {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Menú Administrador",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            DrawerItem(
-                text = "Gestionar Usuarios",
-                icon = Icons.Default.ManageAccounts,
-                onClick = { onNavigate(Screen.GestionUsuarios) }
-            )
-
-            DrawerItem(
-                text = "Configuración",
-                icon = Icons.Default.Settings,
-                onClick = { onNavigate(Screen.Configuracion) }
-            )
-
-            DrawerItem(
-                text = "Reportes",
-                icon = Icons.Default.Assessment,
-                onClick = { /* TODO */ }
-            )
-
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            DrawerItem(
-                text = "Mi Perfil",
-                icon = Icons.Default.Person,
-                onClick = { onNavigate(Screen.Perfil) }
-            )
-        }
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

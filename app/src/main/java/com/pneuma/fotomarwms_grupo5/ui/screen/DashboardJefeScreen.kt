@@ -1,9 +1,8 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,175 +13,195 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.model.Alerta
-import com.pneuma.fotomarwms_grupo5.navigation.Screen
-import com.pneuma.fotomarwms_grupo5.viewmodels.DashboardJefeViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.AprobacionViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.MensajeViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Dashboard principal para usuarios con rol JEFE DE BODEGA
+ * Dashboard para rol JEFE DE BODEGA
  *
- * Muestra:
- * - Alertas del sistema (stock bajo, vencimientos, solicitudes pendientes)
- * - Estadísticas de pendientes y aprobados
+ * Funcionalidades principales:
+ * - Alertas del sistema (stock bajo, solicitudes pendientes)
+ * - Contadores de aprobaciones pendientes y aprobadas del día
  * - Acciones rápidas (ver aprobaciones, enviar mensajes)
+ * - Alertas de productos con vencimiento cercano
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardJefeScreen(
-    navController: NavController,
-    viewModel: DashboardJefeViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    aprobacionViewModel: AprobacionViewModel,
+    mensajeViewModel: MensajeViewModel,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Estados
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    // Drawer con menú lateral
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            DrawerJefe(
-                onNavigate = { screen ->
+            DrawerContent(
+                currentUser = currentUser,
+                currentRoute = "dashboard_jefe",
+                onNavigate = { route ->
                     scope.launch {
                         drawerState.close()
-                        navController.navigate(screen.route)
+                        onNavigate(route)
                     }
+                },
+                onLogout = {
+                    authViewModel.logout()
+                    onNavigate("login")
                 }
             )
         }
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { Text("FotomarWMS") },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menú")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                AppTopBar(
+                    title = "Dashboard Jefe",
+                    onMenuClick = {
+                        scope.launch { drawerState.open() }
+                    }
                 )
             }
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier
+        ) { paddingValues ->
+            Column(
+                modifier = modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
             ) {
-                // Saludo personalizado
-                item {
-                    Text(
-                        text = "Bienvenido, Jefe de Bodega",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Alertas del sistema
-                item {
-                    if (uiState.alertas.isNotEmpty()) {
-                        AlertasCard(alertas = uiState.alertas)
-                    }
-                }
-
-                // Estadísticas en cards
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        EstadisticaCard(
-                            titulo = "Pendientes",
-                            valor = uiState.solicitudesPendientes.toString(),
-                            icono = Icons.Default.Pending,
-                            color = Color(0xFFFFA726),
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        EstadisticaCard(
-                            titulo = "Aprobados Hoy",
-                            valor = uiState.aprobadosHoy.toString(),
-                            icono = Icons.Default.CheckCircle,
-                            color = Color(0xFF66BB6A),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                // Acciones Rápidas
-                item {
-                    Text(
-                        text = "Acciones Rápidas",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AccionRapidaJefeButton(
-                            texto = "Ver Aprobaciones",
-                            icono = Icons.Default.Approval,
-                            onClick = { navController.navigate(Screen.Aprobaciones.route) }
-                        )
-
-                        AccionRapidaJefeButton(
-                            texto = "Enviar Mensaje",
-                            icono = Icons.Default.Message,
-                            onClick = { navController.navigate(Screen.Mensajes.route) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Card que muestra las alertas del sistema
- */
-@Composable
-fun AlertasCard(alertas: List<Alerta>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFF9C4) // Amarillo claro
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = "Alertas",
-                    tint = Color(0xFFF57C00),
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                // ========== SALUDO ==========
                 Text(
-                    text = "Alertas",
+                    text = "Bienvenido, Jefe de Bodega",
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFF57C00)
+                    modifier = Modifier.padding(bottom = 24.dp)
                 )
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                // ========== ALERTAS ==========
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFF9C4) // Amarillo claro
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFF57F17),
+                            modifier = Modifier.size(32.dp)
+                        )
 
-            alertas.forEach { alerta ->
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "⚠️ Alertas",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF57F17)
+                            )
+                            Text(
+                                text = "3 productos con stock bajo",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                            Text(
+                                text = "5 solicitudes pendientes",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+
+                // ========== CONTADORES ==========
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Pendientes
+                    CounterCard(
+                        icon = Icons.Default.PendingActions,
+                        title = "Pendientes",
+                        count = 5,
+                        backgroundColor = Color(0xFFFFF3E0),
+                        iconColor = Color(0xFFF57C00),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigate("aprobaciones") }
+                    )
+
+                    // Aprobados Hoy
+                    CounterCard(
+                        icon = Icons.Default.CheckCircle,
+                        title = "Aprobados Hoy",
+                        count = 18,
+                        backgroundColor = Color(0xFFE8F5E9),
+                        iconColor = Color(0xFF388E3C),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigate("aprobaciones") }
+                    )
+                }
+
+                // ========== ACCIONES RÁPIDAS ==========
                 Text(
-                    text = "• ${alerta.mensaje}",
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    text = "Acciones Rápidas",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Ver Aprobaciones
+                QuickActionButton(
+                    icon = Icons.Default.CheckCircle,
+                    text = "Ver Aprobaciones",
+                    onClick = { onNavigate("aprobaciones") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Enviar Mensaje
+                QuickActionButton(
+                    icon = Icons.Default.Send,
+                    text = "Enviar Mensaje",
+                    onClick = { onNavigate("enviar_mensaje") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Registro Directo
+                QuickActionButton(
+                    icon = Icons.Default.Assignment,
+                    text = "Registro Directo",
+                    onClick = { onNavigate("registro_directo") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Buscar Producto
+                QuickActionButton(
+                    icon = Icons.Default.Search,
+                    text = "Buscar Producto",
+                    onClick = { onNavigate("busqueda") }
                 )
             }
         }
@@ -190,45 +209,50 @@ fun AlertasCard(alertas: List<Alerta>) {
 }
 
 /**
- * Card de estadística con ícono y valor
+ * Tarjeta contador con ícono
  */
 @Composable
-fun EstadisticaCard(
-    titulo: String,
-    valor: String,
-    icono: ImageVector,
-    color: Color,
+private fun CounterCard(
+    icon: ImageVector,
+    title: String,
+    count: Int,
+    backgroundColor: Color,
+    iconColor: Color,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(120.dp),
+        onClick = onClick,
+        modifier = modifier,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = backgroundColor
         )
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = icono,
-                contentDescription = titulo,
-                tint = color,
-                modifier = Modifier.size(40.dp)
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = iconColor
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = valor,
-                fontSize = 28.sp,
+                text = count.toString(),
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
-                color = color
+                color = iconColor
             )
+
             Text(
-                text = titulo,
-                fontSize = 12.sp,
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -236,21 +260,18 @@ fun EstadisticaCard(
 }
 
 /**
- * Botón de acción rápida para el jefe
+ * Botón de acción rápida con ícono
  */
 @Composable
-fun AccionRapidaJefeButton(
-    texto: String,
-    icono: ImageVector,
-    onClick: () -> Unit
+private fun QuickActionButton(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -258,79 +279,36 @@ fun AccionRapidaJefeButton(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icono,
-                contentDescription = texto,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
-            )
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.width(16.dp))
+
             Text(
-                text = texto,
-                fontSize = 16.sp,
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-    }
-}
-
-/**
- * Drawer lateral con opciones de navegación para jefe
- */
-@Composable
-fun DrawerJefe(onNavigate: (Screen) -> Unit) {
-    ModalDrawerSheet {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Menú Jefe de Bodega",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.weight(1f)
             )
 
-            DrawerItem(
-                text = "Buscar Producto",
-                icon = Icons.Default.Search,
-                onClick = { onNavigate(Screen.Busqueda) }
-            )
-
-            DrawerItem(
-                text = "Gestionar Ubicaciones",
-                icon = Icons.Default.LocationOn,
-                onClick = { onNavigate(Screen.GestionUbicaciones) }
-            )
-
-            DrawerItem(
-                text = "Registro Directo",
-                icon = Icons.Default.AddBox,
-                onClick = { onNavigate(Screen.RegistroDirecto) }
-            )
-
-            DrawerItem(
-                text = "Aprobaciones",
-                icon = Icons.Default.Approval,
-                onClick = { onNavigate(Screen.Aprobaciones) }
-            )
-
-            DrawerItem(
-                text = "Inventario",
-                icon = Icons.Default.Inventory,
-                onClick = { onNavigate(Screen.Inventario) }
-            )
-
-            DrawerItem(
-                text = "Mensajes",
-                icon = Icons.Default.Message,
-                onClick = { onNavigate(Screen.Mensajes) }
-            )
-
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            DrawerItem(
-                text = "Mi Perfil",
-                icon = Icons.Default.Person,
-                onClick = { onNavigate(Screen.Perfil) }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Ir",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

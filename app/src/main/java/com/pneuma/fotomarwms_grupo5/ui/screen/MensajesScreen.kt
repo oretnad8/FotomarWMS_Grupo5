@@ -1,312 +1,295 @@
 package com.pneuma.fotomarwms_grupo5.ui.screen
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.pneuma.fotomarwms_grupo5.model.Mensaje
-import com.pneuma.fotomarwms_grupo5.viewmodels.MensajesViewModel
-import java.text.SimpleDateFormat
-import java.util.Locale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.Mensaje
+import com.pneuma.fotomarwms_grupo5.models.UiState
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.MensajeViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Pantalla de Mensajes
  *
- * Muestra:
- * - Mensajes del jefe de bodega a operadores
- * - Notificaciones del sistema
- * - Permite marcar como leído
+ * Funcionalidades:
+ * - Bandeja de entrada de mensajes
+ * - Filtros: Todos, No leídos, Importantes
+ * - Detalle de mensaje en diálogo
+ * - Marcar como leído automáticamente
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MensajesScreen(
-    navController: NavController,
-    viewModel: MensajesViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    mensajeViewModel: MensajeViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var tabSeleccionado by remember { mutableStateOf(0) }
+    // Estados
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+    val mensajesState by mensajeViewModel.mensajesState.collectAsStateWithLifecycle()
+    val selectedMensaje by mensajeViewModel.selectedMensaje.collectAsStateWithLifecycle()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Mensajes") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+    // Estados de filtro
+    var filtroActivo by remember { mutableStateOf("todos") }
+
+    // Estados de UI
+    var showMensajeDialog by remember { mutableStateOf(false) }
+
+    // Cargar mensajes al iniciar
+    LaunchedEffect(Unit) {
+        mensajeViewModel.getMensajes()
+    }
+
+    // Drawer con menú lateral
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            DrawerContent(
+                currentUser = currentUser,
+                currentRoute = "mensajes",
+                onNavigate = { route ->
+                    scope.launch {
+                        drawerState.close()
+                        onNavigateBack()
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                onLogout = {
+                    authViewModel.logout()
+                    onNavigateBack()
+                }
             )
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Pestañas: Mensajes del Jefe / Tareas Pendientes
-            TabRow(selectedTabIndex = tabSeleccionado) {
-                Tab(
-                    selected = tabSeleccionado == 0,
-                    onClick = { tabSeleccionado = 0 },
-                    text = { Text("Mensajes del Jefe") },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Message,
-                            contentDescription = "Mensajes"
-                        )
-                    }
-                )
-                Tab(
-                    selected = tabSeleccionado == 1,
-                    onClick = { tabSeleccionado = 1 },
-                    text = { Text("Tareas Pendientes") },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Assignment,
-                            contentDescription = "Tareas"
-                        )
-                    }
-                )
-            }
-
-            // Contenido según pestaña seleccionada
-            when (tabSeleccionado) {
-                0 -> MensajesDelJefeTab(
-                    mensajes = uiState.mensajes,
-                    onMensajeClick = { viewModel.marcarComoLeido(it.id) }
-                )
-                1 -> TareasPendientesTab(uiState.tareas)
-            }
-        }
-    }
-}
-
-/**
- * Tab que muestra los mensajes del jefe
- */
-@Composable
-fun MensajesDelJefeTab(
-    mensajes: List<Mensaje>,
-    onMensajeClick: (Mensaje) -> Unit
-) {
-    if (mensajes.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.MarkEmailRead,
-                    contentDescription = "Sin mensajes",
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "No hay mensajes",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(mensajes) { mensaje ->
-                MensajeCard(
-                    mensaje = mensaje,
-                    onClick = { onMensajeClick(mensaje) }
-                )
-            }
-        }
-    }
-}
-
-/**
- * Card que representa un mensaje del jefe
- */
-@Composable
-fun MensajeCard(
-    mensaje: Mensaje,
-    onClick: () -> Unit
-) {
-    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (mensaje.leido)
-                MaterialTheme.colorScheme.surface
-            else
-                Color(0xFFE3F2FD)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            // Avatar del remitente
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = mensaje.emisor.nombre.first().toString(),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+        Scaffold(
+            topBar = {
+                AppTopBar(
+                    title = "Mensajes",
+                    onMenuClick = {
+                        scope.launch { drawerState.open() }
+                    }
                 )
             }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                // Header: Remitente y hora
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+        ) { paddingValues ->
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // ========== FILTROS ==========
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
                 ) {
-                    Text(
-                        text = mensaje.emisor.nombre,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (mensaje.importante) {
-                            Icon(
-                                imageVector = Icons.Default.PriorityHigh,
-                                contentDescription = "Urgente",
-                                tint = Color.Red,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                        }
-                        Text(
-                            text = timeFormat.format(mensaje.fecha),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Título del mensaje
-                Text(
-                    text = mensaje.titulo,
-                    fontSize = 13.sp,
-                    fontWeight = if (!mensaje.leido) FontWeight.SemiBold else FontWeight.Normal
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Contenido del mensaje (preview)
-                Text(
-                    text = mensaje.contenido,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
-                )
-
-                // Badge si no está leído
-                if (!mensaje.leido) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primary
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "Marcar como leído",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = Color.White,
-                            fontSize = 10.sp
+                            text = "Filtros",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                text = "Todos",
+                                selected = filtroActivo == "todos",
+                                onClick = {
+                                    filtroActivo = "todos"
+                                    mensajeViewModel.getMensajes()
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            FilterChip(
+                                text = "No leídos",
+                                selected = filtroActivo == "no_leidos",
+                                onClick = {
+                                    filtroActivo = "no_leidos"
+                                    mensajeViewModel.getMensajesNoLeidos()
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            FilterChip(
+                                text = "Importantes",
+                                selected = filtroActivo == "importantes",
+                                onClick = {
+                                    filtroActivo = "importantes"
+                                    mensajeViewModel.getMensajesImportantes()
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                // ========== LISTA DE MENSAJES ==========
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                ) {
+                    when (val state = mensajesState) {
+                        is UiState.Loading -> {
+                            LoadingState(message = "Cargando mensajes...")
+                        }
+
+                        is UiState.Success -> {
+                            if (state.data.isEmpty()) {
+                                EmptyState(
+                                    icon = Icons.Default.MailOutline,
+                                    title = "Sin mensajes",
+                                    message = when (filtroActivo) {
+                                        "no_leidos" -> "No tienes mensajes sin leer"
+                                        "importantes" -> "No tienes mensajes importantes"
+                                        else -> "No tienes mensajes"
+                                    }
+                                )
+                            } else {
+                                Column {
+                                    // Header con contador
+                                    Text(
+                                        text = "${state.data.size} mensaje(s)",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+
+                                    // Lista de mensajes
+                                    LazyColumn(
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(state.data) { mensaje ->
+                                            MensajeCard(
+                                                mensaje = mensaje,
+                                                onClick = {
+                                                    mensajeViewModel.selectMensaje(mensaje)
+                                                    showMensajeDialog = true
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        is UiState.Error -> {
+                            ErrorState(
+                                message = state.message,
+                                onRetry = {
+                                    when (filtroActivo) {
+                                        "no_leidos" -> mensajeViewModel.getMensajesNoLeidos()
+                                        "importantes" -> mensajeViewModel.getMensajesImportantes()
+                                        else -> mensajeViewModel.getMensajes()
+                                    }
+                                }
+                            )
+                        }
+
+                        is UiState.Idle -> {
+                            EmptyState(
+                                icon = Icons.Default.Email,
+                                title = "Mensajes",
+                                message = "Cargando bandeja de entrada..."
+                            )
+                        }
                     }
                 }
             }
         }
     }
-}
 
-/**
- * Tab que muestra las tareas pendientes
- */
-@Composable
-fun TareasPendientesTab(tareas: List<String>) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(tareas) { tarea ->
-            TareaPendienteCard(descripcion = tarea)
-        }
+    // ========== DIÁLOGO DE DETALLE DE MENSAJE ==========
+    if (showMensajeDialog && selectedMensaje != null) {
+        MensajeDetailDialog(
+            mensaje = selectedMensaje!!,
+            onDismiss = {
+                showMensajeDialog = false
+                mensajeViewModel.clearSelectedMensaje()
+            }
+        )
     }
 }
 
 /**
- * Card que representa una tarea pendiente
+ * Diálogo para mostrar el detalle completo del mensaje
  */
 @Composable
-fun TareaPendienteCard(descripcion: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFF9C4) // Amarillo claro
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+private fun MensajeDetailDialog(
+    mensaje: Mensaje,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
             Icon(
-                imageVector = Icons.Default.Circle,
-                contentDescription = "Tarea",
-                tint = Color(0xFFFFA726),
-                modifier = Modifier.size(12.dp)
+                imageVector = when {
+                    mensaje.importante -> Icons.Default.PriorityHigh
+                    else -> Icons.Default.Email
+                },
+                contentDescription = null,
+                tint = if (mensaje.importante)
+                    MaterialTheme.colorScheme.error
+                else
+                    MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+        },
+        title = {
+            Column {
+                if (mensaje.importante) {
+                    AlertBadge(
+                        text = "IMPORTANTE",
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                Text(text = mensaje.titulo)
+            }
+        },
+        text = {
+            Column {
+                // Remitente y fecha
                 Text(
-                    text = descripcion,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    text = "De: ${mensaje.remitente}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "PENDIENTE",
-                    fontSize = 11.sp,
-                    color = Color(0xFFF57C00)
+                    text = "Fecha: ${mensaje.fecha}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Contenido del mensaje
+                Text(
+                    text = mensaje.contenido,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
         }
-    }
+    )
 }
