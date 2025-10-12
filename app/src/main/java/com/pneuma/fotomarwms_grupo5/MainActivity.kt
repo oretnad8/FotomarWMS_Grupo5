@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalAnimationApi::class)
+
 package com.pneuma.fotomarwms_grupo5
 
 import android.os.Bundle
@@ -10,14 +12,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.pneuma.fotomarwms_grupo5.navigation.Screen
 import com.pneuma.fotomarwms_grupo5.ui.screen.*
 import com.pneuma.fotomarwms_grupo5.ui.theme.TestTheme
 import com.pneuma.fotomarwms_grupo5.viewmodels.*
+
+
+import com.google.accompanist.navigation.animation.AnimatedNavHost
+import com.google.accompanist.navigation.animation.composable
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+
+
 
 /**
  * MainActivity - Actividad principal de la aplicación FotomarWMS
@@ -38,6 +48,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 fun FotomarWMSApp() {
     // NavController para navegación
@@ -56,13 +67,42 @@ fun FotomarWMSApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        NavHost(
+        AnimatedNavHost( //Se cambia para que sea animada
             navController = navController,
             startDestination = Screen.Login.route,
-            modifier = Modifier.padding(paddingValues = innerPadding)
+            modifier = Modifier.padding(paddingValues = innerPadding),
+            //duracion de transisciones globales aplicadas a todas las pantallas
+            //Transicion para entrar
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { it / 3 },  // entra desde la derecha
+                    animationSpec = tween(900, easing = FastOutSlowInEasing)
+                ) + fadeIn(tween(700))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 }, // sale a la izquierda
+                    animationSpec = tween(750, easing = LinearOutSlowInEasing)
+                ) + fadeOut(tween(400))
+            },
+            //Transicion para volver atras
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 }, // entra desde la izquierda (al volver)
+                    animationSpec = tween(900)
+                ) + fadeIn(tween(700))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { it / 3 },
+                    animationSpec = tween(750)
+                ) + fadeOut(tween(400))
+            }
         ) {
             // ========== LOGIN ==========
-            composable(route = Screen.Login.route) {
+            composable(
+                route = Screen.Login.route
+            ){
                 LoginScreen(
                     authViewModel = authViewModel,
                     onNavigateToHome = { route ->
@@ -80,7 +120,9 @@ fun FotomarWMSApp() {
             // ========== DASHBOARDS ==========
 
             // Dashboard Admin
-            composable(route = Screen.DashboardAdmin.route) {
+            composable(
+                route = Screen.DashboardAdmin.route
+            ) {
                 DashboardAdminScreen(
                     authViewModel = authViewModel,
                     usuarioViewModel = usuarioViewModel,
