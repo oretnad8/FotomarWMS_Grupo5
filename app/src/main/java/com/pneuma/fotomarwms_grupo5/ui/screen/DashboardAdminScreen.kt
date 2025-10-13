@@ -18,6 +18,12 @@ import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.UsuarioViewModel
 import kotlinx.coroutines.launch
 
+import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.contarUsuariosActivos
+
+import com.pneuma.fotomarwms_grupo5.models.UiState
+
+
+
 /**
  * Dashboard para rol ADMINISTRADOR
  *
@@ -39,6 +45,19 @@ fun DashboardAdminScreen(
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    //Para ver el estado de los usuarios
+    val usuariosState by usuarioViewModel.usuariosState.collectAsStateWithLifecycle()
+
+    val activeUsersText = when (val state = usuariosState) {
+        is UiState.Success -> contarUsuariosActivos(state.data).toString()   // 👈 Usa la función acá
+        is UiState.Loading -> "…"   // Mientras carga
+        is UiState.Error -> "--"    // Si hay error
+        else -> "--"
+    }
+
+
+    //Para saber cuantos usuarios estan activos
 
     // Drawer con menú lateral
     ModalNavigationDrawer(
@@ -103,7 +122,7 @@ fun DashboardAdminScreen(
                     StatCard(
                         icon = Icons.Default.Person,
                         title = "Usuarios Activos",
-                        value = "24",
+                        value = activeUsersText,
                         modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.primary
                     )
