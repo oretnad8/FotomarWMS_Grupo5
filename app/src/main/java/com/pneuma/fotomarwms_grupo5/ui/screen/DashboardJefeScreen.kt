@@ -19,6 +19,7 @@ import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.AprobacionViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.MensajeViewModel
 import kotlinx.coroutines.launch
+import com.pneuma.fotomarwms_grupo5.navigation.Screen
 
 /**
  * Dashboard para rol JEFE DE BODEGA
@@ -183,7 +184,8 @@ fun DashboardJefeScreen(
                 QuickActionButton(
                     icon = Icons.Default.Send,
                     text = "Enviar Mensaje",
-                    onClick = { onNavigate("enviar_mensaje") }
+                    onClick = { onNavigate(Screen.EnviarMensaje.route)
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))

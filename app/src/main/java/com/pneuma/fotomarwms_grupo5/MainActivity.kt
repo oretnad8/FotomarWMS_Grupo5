@@ -326,12 +326,15 @@ fun FotomarWMSApp() {
             }
 
             // Enviar mensaje (Jefe/Supervisor)
-            composable(route = Screen.EnviarMensaje.route) {
-                // TODO: Crear EnviarMensajeScreen
-                // Por ahora redirige atrás
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
-                }
+            composable(Screen.EnviarMensaje.route) {
+                val mensajeVM: MensajeViewModel = viewModel()   // o hiltViewModel()
+                val usuarioVM: UsuarioViewModel = viewModel()   // o hiltViewModel()
+
+                EnviarMensajeScreen(
+                    mensajeViewModel = mensajeVM,
+                    usuarioViewModel = usuarioVM,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
 
             // ========== INVENTARIO ==========
