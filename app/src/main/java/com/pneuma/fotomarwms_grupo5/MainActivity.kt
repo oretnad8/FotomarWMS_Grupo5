@@ -224,11 +224,10 @@ fun FotomarWMSApp() {
             }
 
             // Detalle de ubicación
+            // Detalle de ubicación (versión correcta)
             composable(
                 route = "detalle_ubicacion/{codigo}",
-                arguments = listOf(
-                    navArgument("codigo") { type = NavType.StringType }
-                )
+                arguments = listOf(navArgument("codigo") { type = NavType.StringType })
             ) { backStackEntry ->
                 val codigo = backStackEntry.arguments?.getString("codigo") ?: return@composable
                 val ubicacionVM: UbicacionViewModel = viewModel()  // o hiltViewModel()
@@ -237,13 +236,15 @@ fun FotomarWMSApp() {
                     codigo = codigo,
                     ubicacionViewModel = ubicacionVM,
                     onNavigateBack = { navController.popBackStack() },
-                    // 🔧 usa la ruta literal que ya tienes registrada:
                     onNavigateToProducto = { sku ->
                         navController.navigate("detalle_producto/$sku")
+                    },
+                    onNavigateToConteo = { idUbicacion ->
+                        navController.navigate("conteo_ubicacion/$idUbicacion")   // 👈 AQUÍ SE NAVEGA
                     }
-
                 )
             }
+
 
             // ========== MOVIMIENTOS ==========
 
@@ -361,27 +362,22 @@ fun FotomarWMSApp() {
             }
 
             // Diferencias de inventario
-            composable(Screen.DiferenciasInventario.route) {
-                val inventarioVM: InventarioViewModel = viewModel() // o hiltViewModel()
-                DiferenciasInventarioScreen(
-                    inventarioViewModel = inventarioVM,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            // Conteo de ubicación específica
             composable(
                 route = "conteo_ubicacion/{idUbicacion}",
                 arguments = listOf(
                     navArgument("idUbicacion") { type = NavType.IntType }
                 )
             ) { backStackEntry ->
-                val idUbicacion = backStackEntry.arguments?.getInt("idUbicacion") ?: 0
-                // TODO: Crear ConteoUbicacionScreen
-                // Por ahora redirige atrás
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
-                }
+                val idUbicacion = backStackEntry.arguments?.getInt("idUbicacion") ?: return@composable
+                val ubicacionVM: UbicacionViewModel = viewModel()   // o hiltViewModel()
+                val inventarioVM: InventarioViewModel = viewModel() // o hiltViewModel()
+
+                ConteoUbicacionScreen(
+                    idUbicacion = idUbicacion,
+                    ubicacionViewModel = ubicacionVM,
+                    inventarioViewModel = inventarioVM,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
 
             // ========== GESTIÓN DE USUARIOS (ADMIN) ==========
@@ -430,6 +426,27 @@ fun FotomarWMSApp() {
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+            //CONTEO UBICACION
+            composable(
+                route = "detalle_ubicacion/{codigo}",
+                arguments = listOf(navArgument("codigo") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val codigo = backStackEntry.arguments?.getString("codigo") ?: return@composable
+                val ubicacionVM: UbicacionViewModel = viewModel()  // o hiltViewModel()
+
+                DetalleUbicacionScreen(
+                    codigo = codigo,
+                    ubicacionViewModel = ubicacionVM,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProducto = { sku ->
+                        navController.navigate("detalle_producto/$sku")
+                    },
+                    onNavigateToConteo = { idUbicacion ->
+                        navController.navigate("conteo_ubicacion/$idUbicacion")   // 👈 AQUÍ SE NAVEGA
+                    }
+                )
+            }
+
 
         }
 

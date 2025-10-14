@@ -18,7 +18,7 @@ import com.pneuma.fotomarwms_grupo5.viewmodels.UbicacionViewModel
 
 /**
  * Pantalla de Detalle de Ubicación
- * 
+ *
  * Muestra:
  * - Código de ubicación
  * - Piso y número
@@ -32,17 +32,17 @@ fun DetalleUbicacionScreen(
     ubicacionViewModel: UbicacionViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToProducto: (String) -> Unit,
+    onNavigateToConteo: (Int) -> Unit,   // 👈 NUEVO CALLBACK
     modifier: Modifier = Modifier
 ) {
     // Estados
     val ubicacionDetailState by ubicacionViewModel.ubicacionDetailState.collectAsStateWithLifecycle()
-    val selectedUbicacion by ubicacionViewModel.selectedUbicacion.collectAsStateWithLifecycle()
-    
+
     // Cargar detalle al iniciar
     LaunchedEffect(codigo) {
         ubicacionViewModel.getUbicacionDetail(codigo)
     }
-    
+
     Scaffold(
         topBar = {
             BackTopBar(
@@ -60,16 +60,16 @@ fun DetalleUbicacionScreen(
                 is UiState.Loading -> {
                     LoadingState(message = "Cargando ubicación...")
                 }
-                
+
                 is UiState.Success -> {
                     val ubicacion = state.data
-                    
+
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item {
-                            // ========== INFORMACIÓN DE LA UBICACIÓN ==========
+                            // ======= INFORMACIÓN DE LA UBICACIÓN =======
                             Card(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -79,20 +79,16 @@ fun DetalleUbicacionScreen(
                                         .padding(24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    // Código grande
                                     Text(
                                         text = ubicacion.codigoUbicacion,
                                         style = MaterialTheme.typography.displayMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                    
+
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    
-                                    // Piso y número
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                         Surface(
                                             shape = MaterialTheme.shapes.medium,
                                             color = MaterialTheme.colorScheme.primaryContainer
@@ -104,7 +100,7 @@ fun DetalleUbicacionScreen(
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
-                                        
+
                                         Surface(
                                             shape = MaterialTheme.shapes.medium,
                                             color = MaterialTheme.colorScheme.secondaryContainer
@@ -120,9 +116,9 @@ fun DetalleUbicacionScreen(
                                 }
                             }
                         }
-                        
+
                         item {
-                            // ========== ESTADÍSTICAS ==========
+                            // ======= ESTADÍSTICAS =======
                             Card(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -137,9 +133,9 @@ fun DetalleUbicacionScreen(
                                         label = "Productos",
                                         value = ubicacion.productos?.size?.toString() ?: "0"
                                     )
-                                    
+
                                     VerticalDivider(modifier = Modifier.height(60.dp))
-                                    
+
                                     StatItem(
                                         icon = Icons.Default.Numbers,
                                         label = "Unidades",
@@ -148,46 +144,43 @@ fun DetalleUbicacionScreen(
                                 }
                             }
                         }
-                        
+
                         item {
-                            // ========== PRODUCTOS ALMACENADOS ==========
+                            // ======= BOTÓN: CONTEO FÍSICO =======
+                            Button(
+                                onClick = {
+                                    ubicacion.idUbicacion?.let {
+                                        onNavigateToConteo(it)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Realizar conteo físico")
+                            }
+                        }
+
+                        item {
                             Text(
                                 text = "Productos Almacenados",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        
+
                         if (ubicacion.productos.isNullOrEmpty()) {
                             item {
-                                Card(
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(32.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Inbox,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(64.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text(
-                                            text = "Ubicación Vacía",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "No hay productos en esta ubicación",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
+                                EmptyState(
+                                    icon = Icons.Default.Inbox,
+                                    title = "Ubicación Vacía",
+                                    message = "No hay productos en esta ubicación"
+                                )
                             }
                         } else {
                             items(ubicacion.productos) { productoEnUbicacion ->
@@ -203,16 +196,12 @@ fun DetalleUbicacionScreen(
                                             .padding(16.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Ícono
                                         Surface(
                                             shape = MaterialTheme.shapes.medium,
                                             color = MaterialTheme.colorScheme.primaryContainer,
                                             modifier = Modifier.size(56.dp)
                                         ) {
-                                            Box(
-                                                contentAlignment = Alignment.Center,
-                                                modifier = Modifier.fillMaxSize()
-                                            ) {
+                                            Box(contentAlignment = Alignment.Center) {
                                                 Icon(
                                                     imageVector = Icons.Default.Inventory,
                                                     contentDescription = null,
@@ -220,10 +209,9 @@ fun DetalleUbicacionScreen(
                                                 )
                                             }
                                         }
-                                        
+
                                         Spacer(modifier = Modifier.width(16.dp))
-                                        
-                                        // Info del producto
+
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = productoEnUbicacion.sku,
@@ -233,17 +221,15 @@ fun DetalleUbicacionScreen(
                                             )
                                             Text(
                                                 text = productoEnUbicacion.descripcion,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                modifier = Modifier.padding(top = 4.dp)
+                                                style = MaterialTheme.typography.bodyMedium
                                             )
                                             Text(
                                                 text = "Cantidad: ${productoEnUbicacion.cantidad}",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.padding(top = 4.dp)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
-                                        
+
                                         Icon(
                                             imageVector = Icons.Default.ChevronRight,
                                             contentDescription = "Ver producto"
@@ -254,7 +240,7 @@ fun DetalleUbicacionScreen(
                         }
                     }
                 }
-                
+
                 is UiState.Error -> {
                     ErrorState(
                         message = state.message,
@@ -263,7 +249,7 @@ fun DetalleUbicacionScreen(
                         }
                     )
                 }
-                
+
                 is UiState.Idle -> {}
             }
         }
@@ -279,9 +265,7 @@ private fun StatItem(
     label: String,
     value: String
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(
             imageVector = icon,
             contentDescription = null,
