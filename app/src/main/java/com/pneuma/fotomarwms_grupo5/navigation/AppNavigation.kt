@@ -189,3 +189,14 @@ data object Configuracion : Screen("configuracion")
 
 //Ruta diferencias inventario
 data object DiferenciasInventario : Screen("diferenciasInventario")
+
+
+// Detalle de ubicación (recibe argumento `codigo`)
+data object DetalleUbicacion : Screen("detalle_ubicacion") {
+    fun buildRoute(codigo: String) = "$route/$codigo"
+}
+
+// Conteo de ubicación (recibe argumento `idUbicacion`)
+data object ConteoUbicacion : Screen("conteo_ubicacion") {
+    fun buildRoute(idUbicacion: Int) = "$route/$idUbicacion"
+}

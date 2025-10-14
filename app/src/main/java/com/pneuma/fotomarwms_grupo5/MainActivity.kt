@@ -230,12 +230,19 @@ fun FotomarWMSApp() {
                     navArgument("codigo") { type = NavType.StringType }
                 )
             ) { backStackEntry ->
-                val codigo = backStackEntry.arguments?.getString("codigo") ?: ""
-                // TODO: Crear DetalleUbicacionScreen
-                // Por ahora redirige atrás
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
-                }
+                val codigo = backStackEntry.arguments?.getString("codigo") ?: return@composable
+                val ubicacionVM: UbicacionViewModel = viewModel()  // o hiltViewModel()
+
+                DetalleUbicacionScreen(
+                    codigo = codigo,
+                    ubicacionViewModel = ubicacionVM,
+                    onNavigateBack = { navController.popBackStack() },
+                    // 🔧 usa la ruta literal que ya tienes registrada:
+                    onNavigateToProducto = { sku ->
+                        navController.navigate("detalle_producto/$sku")
+                    }
+
+                )
             }
 
             // ========== MOVIMIENTOS ==========
