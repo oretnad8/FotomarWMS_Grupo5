@@ -19,7 +19,7 @@ import com.pneuma.fotomarwms_grupo5.ui.screen.*
 import com.pneuma.fotomarwms_grupo5.ui.theme.TestTheme
 import com.pneuma.fotomarwms_grupo5.viewmodels.*
 
-
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 import androidx.compose.animation.*
@@ -411,13 +411,14 @@ fun FotomarWMSApp() {
             }
 
             // Configuración
-            composable(route = Screen.Configuracion.route) {
-                // TODO: Crear ConfiguracionScreen
-                // Por ahora redirige atrás
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
-                }
+            composable(Screen.Configuracion.route) {
+                ConfiguracionScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
+
         }
+
     }
+
 }

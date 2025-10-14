@@ -183,3 +183,7 @@ fun getDashboardForRole(rol: String): Screen {
         else -> Screen.Login
     }
 }
+
+// Ruta simple para Configuración
+data object Configuracion : Screen("configuracion")
+

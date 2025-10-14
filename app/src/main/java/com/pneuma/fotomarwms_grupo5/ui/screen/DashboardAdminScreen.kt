@@ -22,6 +22,8 @@ import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.contarUsuariosActivos
 
 import com.pneuma.fotomarwms_grupo5.models.UiState
 
+import com.pneuma.fotomarwms_grupo5.navigation.Screen
+
 
 
 /**
@@ -172,7 +174,8 @@ fun DashboardAdminScreen(
                     icon = Icons.Default.Settings,
                     title = "Configuración",
                     description = "Configurar parámetros generales del sistema",
-                    onClick = { onNavigate("configuracion") }
+                    onClick = { onNavigate(Screen.Configuracion.route) }
+
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))

@@ -62,5 +62,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("com.google.accompanist:accompanist-navigation-animation:0.36.0")
+    implementation("androidx.compose.material:material-icons-extended")
 
 }
