@@ -26,6 +26,10 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*   // ArrowForward, Remove, Add, Check, LocationOn, DragHandle
+import androidx.compose.ui.graphics.vector.ImageVector
 
 
 
@@ -347,12 +351,12 @@ fun FotomarWMSApp() {
             }
 
             // Diferencias de inventario
-            composable(route = Screen.DiferenciasInventario.route) {
-                // TODO: Crear DiferenciasInventarioScreen
-                // Por ahora redirige atrás
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
-                }
+            composable(Screen.DiferenciasInventario.route) {
+                val inventarioVM: InventarioViewModel = viewModel() // o hiltViewModel()
+                DiferenciasInventarioScreen(
+                    inventarioViewModel = inventarioVM,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
 
             // Conteo de ubicación específica

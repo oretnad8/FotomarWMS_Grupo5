@@ -187,3 +187,5 @@ fun getDashboardForRole(rol: String): Screen {
 // Ruta simple para Configuración
 data object Configuracion : Screen("configuracion")
 
+//Ruta diferencias inventario
+data object DiferenciasInventario : Screen("diferenciasInventario")
