@@ -7,6 +7,8 @@ package com.pneuma.fotomarwms_grupo5.navigation
 sealed class Screen(val route: String) {
     // ========== PANTALLAS COMUNES ==========
 
+    object Splash : Screen("splash")
+
     /**
      * Pantalla de inicio de sesión
      */
@@ -200,3 +202,4 @@ data object DetalleUbicacion : Screen("detalle_ubicacion") {
 data object ConteoUbicacion : Screen("conteo_ubicacion") {
     fun buildRoute(idUbicacion: Int) = "$route/$idUbicacion"
 }
+

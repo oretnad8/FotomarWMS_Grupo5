@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.*   // ArrowForward, Remove, Add, 
 import androidx.compose.ui.graphics.vector.ImageVector
 
 
-
 /**
  * MainActivity - Actividad principal de la aplicación FotomarWMS
  *
@@ -73,7 +72,7 @@ fun FotomarWMSApp() {
     ) { innerPadding ->
         AnimatedNavHost( //Se cambia para que sea animada
             navController = navController,
-            startDestination = Screen.Login.route,
+            startDestination = Screen.Splash.route,
             modifier = Modifier.padding(paddingValues = innerPadding),
             //duracion de transisciones globales aplicadas a todas las pantallas
             //Transicion para entrar
@@ -103,6 +102,16 @@ fun FotomarWMSApp() {
                 ) + fadeOut(tween(400))
             }
         ) {
+            // Splash Screen
+            composable(Screen.Splash.route) {
+                SplashScreen(
+                    onNavigateToLogin = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
             // ========== LOGIN ==========
             composable(
                 route = Screen.Login.route
