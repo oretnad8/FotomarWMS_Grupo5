@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,11 +40,11 @@ fun EnviarMensajeScreen(
     val usuariosState by usuarioViewModel.usuariosState.collectAsStateWithLifecycle()
     
     // Estados del formulario
-    var titulo by remember { mutableStateOf("") }
-    var contenido by remember { mutableStateOf("") }
-    var importante by remember { mutableStateOf(false) }
-    var destinatarioSeleccionado by remember { mutableStateOf<Int?>(null) }
-    var esBroadcast by remember { mutableStateOf(false) }
+    var titulo by rememberSaveable { mutableStateOf("") }
+    var contenido by rememberSaveable { mutableStateOf("") }
+    var importante by rememberSaveable { mutableStateOf(false) }
+    var destinatarioSeleccionado by rememberSaveable { mutableStateOf<Int?>(null) }
+    var esBroadcast by rememberSaveable { mutableStateOf(false) }
     
     // Estados de validación
     var tituloError by remember { mutableStateOf<String?>(null) }

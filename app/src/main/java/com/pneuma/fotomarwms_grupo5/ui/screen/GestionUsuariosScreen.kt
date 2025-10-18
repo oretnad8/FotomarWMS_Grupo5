@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -302,10 +303,10 @@ private fun CreateUsuarioDialog(
     onDismiss: () -> Unit,
     isLoading: Boolean
 ) {
-    var nombre by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var rolSeleccionado by remember { mutableStateOf<Rol?>(null) }
+    var nombre by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var rolSeleccionado by rememberSaveable { mutableStateOf<Rol?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

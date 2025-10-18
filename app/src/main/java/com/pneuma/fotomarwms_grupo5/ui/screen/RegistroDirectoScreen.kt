@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -33,12 +34,12 @@ fun RegistroDirectoScreen(
     modifier: Modifier = Modifier
 ) {
     // Estados del formulario
-    var tipoMovimiento by remember { mutableStateOf<TipoMovimiento?>(null) }
-    var sku by remember { mutableStateOf("") }
-    var cantidad by remember { mutableStateOf("") }
-    var motivo by remember { mutableStateOf("") }
-    var idUbicacionOrigen by remember { mutableStateOf("") }
-    var idUbicacionDestino by remember { mutableStateOf("") }
+    var tipoMovimiento by rememberSaveable { mutableStateOf<TipoMovimiento?>(null) }
+    var sku by rememberSaveable { mutableStateOf("") }
+    var cantidad by rememberSaveable { mutableStateOf("") }
+    var motivo by rememberSaveable { mutableStateOf("") }
+    var idUbicacionOrigen by rememberSaveable { mutableStateOf("") }
+    var idUbicacionDestino by rememberSaveable { mutableStateOf("") }
 
     // Estados de validación
     var skuError by remember { mutableStateOf<String?>(null) }
