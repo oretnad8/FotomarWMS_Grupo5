@@ -40,29 +40,45 @@ android {
 }
 
 dependencies {
+    // ========== NAVEGACIÓN Y ARQUITECTURA ==========
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
-
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.material.icons.extended)
+
+    // ========== ANDROID CORE ==========
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+
+    // ========== COMPOSE ==========
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material-icons-extended")
+
+    // ========== CAMERAX (Para escaneo de códigos) ==========
+    implementation("androidx.camera:camera-core:1.3.1")
+    implementation("androidx.camera:camera-camera2:1.3.1")
+    implementation("androidx.camera:camera-lifecycle:1.5.1")
+    implementation("androidx.camera:camera-view:1.3.1")
+
+    // ========== ML KIT (Escaneo de códigos de barras) ==========
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // ========== ACCOMPANIST (Para permisos en Compose) ==========
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
+    // ========== TESTING ==========
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+
+    // ========== DEBUG ==========
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("com.google.accompanist:accompanist-navigation-animation:0.36.0")
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.material:material-icons-extended")
-
 }

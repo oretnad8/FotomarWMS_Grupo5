@@ -46,6 +46,7 @@ fun BusquedaScreen(
     // Estado local
     var localSearchQuery by remember { mutableStateOf("") }
     var showScanDialog by remember { mutableStateOf(false) }
+    var showScanner by remember { mutableStateOf(false) }
 
     // Drawer con menú lateral
     ModalNavigationDrawer(
@@ -92,8 +93,7 @@ fun BusquedaScreen(
                     // Botón grande de cámara
                     Card(
                         onClick = {
-                            showScanDialog = true
-                            // TODO: Abrir cámara para escanear
+                            showScanner = true
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -201,7 +201,7 @@ fun BusquedaScreen(
                         is UiState.Success -> {
                             if (state.data.isEmpty()) {
                                 EmptyState(
-                                    icon = Icons.Default.SearchOff,
+                                    icon = Icons.Default.Search,
                                     title = "Sin resultados",
                                     message = "No se encontraron productos con \"$searchQuery\"",
                                     actionButton = {
@@ -263,4 +263,19 @@ fun BusquedaScreen(
         onDismiss = { showScanDialog = false },
         showDialog = showScanDialog
     )
+
+    // Escáner de códigos de barras
+    if (showScanner) {
+        BarcodeScanner(
+            onBarcodeScanned = { codigo ->
+                // Cuando se escanea un código, buscar automáticamente
+                localSearchQuery = codigo
+                productoViewModel.searchByBarcode(codigo)
+                showScanner = false
+            },
+            onClose = {
+                showScanner = false
+            }
+        )
+    }
 }
