@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.pneuma.fotomarwms_grupo5.navigation.Screen
@@ -19,18 +21,10 @@ import com.pneuma.fotomarwms_grupo5.ui.screen.*
 import com.pneuma.fotomarwms_grupo5.ui.theme.TestTheme
 import com.pneuma.fotomarwms_grupo5.viewmodels.*
 
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.accompanist.navigation.animation.AnimatedNavHost
-import com.google.accompanist.navigation.animation.composable
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*   // ArrowForward, Remove, Add, Check, LocationOn, DragHandle
-import androidx.compose.ui.graphics.vector.ImageVector
-
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 
 /**
  * MainActivity - Actividad principal de la aplicación FotomarWMS
@@ -70,7 +64,7 @@ fun FotomarWMSApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        AnimatedNavHost( //Se cambia para que sea animada
+        NavHost( //Se cambia para que sea animada
             navController = navController,
             startDestination = Screen.Splash.route,
             modifier = Modifier.padding(paddingValues = innerPadding),
