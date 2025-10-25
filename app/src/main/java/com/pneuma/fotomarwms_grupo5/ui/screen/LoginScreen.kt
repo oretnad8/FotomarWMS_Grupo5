@@ -93,25 +93,7 @@ fun LoginScreen(
                 contentDescription = "Logo FotomarWMS",
                 modifier = Modifier.size(120.dp)
             )
-            Surface(
-                modifier = Modifier
-                    .size(120.dp)
-                    .padding(bottom = 16.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Text(
-                        text = "LOGO",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+
 
             // ========== TÍTULO ==========
             Text(
