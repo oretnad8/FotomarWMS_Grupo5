@@ -1,7 +1,10 @@
 package com.pneuma.fotomarwms_grupo5.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.Application // <-- IMPORTA
+import androidx.lifecycle.AndroidViewModel // <-- CAMBIA A ESTE
 import androidx.lifecycle.viewModelScope
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase // <-- IMPORTA
+import com.pneuma.fotomarwms_grupo5.db.entities.SolicitudMovimientoLocal // <-- IMPORTA
 import com.pneuma.fotomarwms_grupo5.models.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,9 +16,17 @@ import kotlinx.coroutines.launch
  * Maneja solicitudes de movimientos (INGRESO/EGRESO/REUBICACION)
  * y su flujo de aprobación/rechazo
  */
-class AprobacionViewModel : ViewModel() {
-
+class AprobacionViewModel(application: Application) : AndroidViewModel(application) {
     // ========== ESTADOS DE APROBACIONES ==========
+
+
+    // Obtenemos el DAO directamente al crear el ViewModel
+    private val solicitudMovimientoDao = AppDatabase.getDatabase(application).solicitudMovimientoDao()
+
+    private val _createSolicitudState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
+    val createSolicitudState: StateFlow<UiState<Boolean>> = _createSolicitudState.asStateFlow()
+
+
 
     private val _aprobacionesState = MutableStateFlow<UiState<List<Aprobacion>>>(UiState.Idle)
     val aprobacionesState: StateFlow<UiState<List<Aprobacion>>> = _aprobacionesState.asStateFlow()
@@ -26,8 +37,9 @@ class AprobacionViewModel : ViewModel() {
     private val _aprobacionDetailState = MutableStateFlow<UiState<Aprobacion>>(UiState.Idle)
     val aprobacionDetailState: StateFlow<UiState<Aprobacion>> = _aprobacionDetailState.asStateFlow()
 
-    private val _createSolicitudState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
-    val createSolicitudState: StateFlow<UiState<Boolean>> = _createSolicitudState.asStateFlow()
+    //-------ESTA ERA LA ANTIGUA----------
+    //private val _createSolicitudState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
+    //val createSolicitudState: StateFlow<UiState<Boolean>> = _createSolicitudState.asStateFlow()
 
     private val _respuestaState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val respuestaState: StateFlow<UiState<Boolean>> = _respuestaState.asStateFlow()
@@ -181,30 +193,37 @@ class AprobacionViewModel : ViewModel() {
      * @param cantidad Cantidad a ingresar
      * @param motivo Razón del ingreso
      */
+    // --- INGRESO ---
     fun createSolicitudIngreso(sku: String, cantidad: Int, motivo: String) {
-        viewModelScope.launch {
+        viewModelScope.launch { // Ejecutar en segundo plano
             try {
                 _createSolicitudState.value = UiState.Loading
-
-                val request = AprobacionRequest(
-                    tipoMovimiento = "INGRESO",
+                val solicitudLocal = SolicitudMovimientoLocal(
+                    tipoMovimiento = TipoMovimiento.INGRESO.name,
                     sku = sku,
                     cantidad = cantidad,
-                    motivo = motivo
+                    motivo = motivo,
+                    idUbicacionOrigen = null,
+                    idUbicacionDestino = null
+                    // idLocal y timestamp usan sus valores por defecto
                 )
+                // 1. GUARDAR LOCALMENTE PRIMERO
+                val idGenerado = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
+                println("Solicitud ${idGenerado} guardada localmente.") // Mensaje de prueba
 
-                // TODO: Conectar con backend
-                // aprobacionRepository.createSolicitud(request)
+                // 2. (FUTURO) INTENTAR ENVIAR AL BACKEND
+                // val exitoBackend = enviarAlBackend(solicitudLocal) // Función imaginaria
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
+                // 3. (FUTURO) SI BACKEND RESPONDE OK (200), BORRAR LOCALMENTE
+                // if (exitoBackend) {
+                //     borrarSolicitudLocalmente(idGenerado)
+                // } else {
+                //     // Marcar como fallido o dejar pendiente para reintentar
+                // }
 
-                _createSolicitudState.value = UiState.Success(true)
-
+                _createSolicitudState.value = UiState.Success(true) // Éxito (al menos local)
             } catch (e: Exception) {
-                _createSolicitudState.value = UiState.Error(
-                    message = "Error al crear solicitud de ingreso: ${e.message}"
-                )
+                _createSolicitudState.value = UiState.Error("Error al guardar localmente: ${e.message}")
             }
         }
     }
@@ -216,31 +235,27 @@ class AprobacionViewModel : ViewModel() {
      * @param cantidad Cantidad a egresar
      * @param motivo Razón del egreso
      */
+    // --- EGRESO (similar) ---
     fun createSolicitudEgreso(sku: String, cantidad: Int, motivo: String) {
         viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
-
-                val request = AprobacionRequest(
-                    tipoMovimiento = "EGRESO",
-                    sku = sku,
-                    cantidad = cantidad,
-                    motivo = motivo
+                // --- REEMPLAZA EL COMENTARIO CON ESTO: ---
+                val solicitudLocal = SolicitudMovimientoLocal(
+                    tipoMovimiento = TipoMovimiento.EGRESO.name, // <-- Indica que es Egreso
+                    sku = sku,                  // <-- Usa el sku que recibe la función
+                    cantidad = cantidad,        // <-- Usa la cantidad que recibe la función
+                    motivo = motivo,             // <-- Usa el motivo que recibe la función
+                    idUbicacionOrigen = null, // <-- Para Egreso, no hay origen específico (se asume almacén general) o destino. Ponemos null.
+                    idUbicacionDestino = null  // <-- Para Egreso, no hay destino específico. Ponemos null.
                 )
+                // --- FIN DEL REEMPLAZO ---
 
-                // TODO: Conectar con backend
-                // aprobacionRepository.createSolicitud(request)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
+                val idGenerado = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
+                println("✅ Solicitud EGRESO ${idGenerado} guardada localmente.")
+                // (FUTURO: Lógica Backend + Borrado si OK)
                 _createSolicitudState.value = UiState.Success(true)
-
-            } catch (e: Exception) {
-                _createSolicitudState.value = UiState.Error(
-                    message = "Error al crear solicitud de egreso: ${e.message}"
-                )
-            }
+            } catch (e: Exception) { /* ... manejo error ... */ }
         }
     }
 
@@ -253,39 +268,28 @@ class AprobacionViewModel : ViewModel() {
      * @param idUbicacionOrigen ID de ubicación origen
      * @param idUbicacionDestino ID de ubicación destino
      */
-    fun createSolicitudReubicacion(
-        sku: String,
-        cantidad: Int,
-        motivo: String,
-        idUbicacionOrigen: Int,
-        idUbicacionDestino: Int
-    ) {
+    // --- REUBICACION (similar) ---
+    fun createSolicitudReubicacion(sku: String, cantidad: Int, motivo: String, idUbicacionOrigen: Int, idUbicacionDestino: Int) {
         viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
-
-                val request = AprobacionRequest(
-                    tipoMovimiento = "REUBICACION",
-                    sku = sku,
-                    cantidad = cantidad,
-                    motivo = motivo,
-                    idUbicacionOrigen = idUbicacionOrigen,
-                    idUbicacionDestino = idUbicacionDestino
+                val solicitudLocal = SolicitudMovimientoLocal(
+                    tipoMovimiento = TipoMovimiento.REUBICACION.name, // <-- Tipo REUBICACION
+                    sku = sku,                     // <-- Usa el sku que recibe la función
+                    cantidad = cantidad,           // <-- Usa la cantidad que recibe la función
+                    motivo = motivo,               // <-- Usa el motivo que recibe la función
+                    idUbicacionOrigen = idUbicacionOrigen, // <-- Usa el origen que recibe la función
+                    idUbicacionDestino = idUbicacionDestino // <-- Usa el destino que recibe la función
                 )
+                // --- Fin de la creación del objeto ---
 
-                // TODO: Conectar con backend
-                // aprobacionRepository.createSolicitud(request)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
+                // 1. GUARDA EN SQLITE
+                val idGenerado = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
+                println("✅ Solicitud REUBICACION ${idGenerado} guardada localmente.") // Mensaje de prueba
+                // 2. (FUTURO) LLAMADA AL BACKEND...
+                // 3. (FUTURO) BORRAR SI BACKEND OK...
                 _createSolicitudState.value = UiState.Success(true)
-
-            } catch (e: Exception) {
-                _createSolicitudState.value = UiState.Error(
-                    message = "Error al crear solicitud de reubicación: ${e.message}"
-                )
-            }
+            } catch (e: Exception) { /* ... manejo error ... */ }
         }
     }
 
