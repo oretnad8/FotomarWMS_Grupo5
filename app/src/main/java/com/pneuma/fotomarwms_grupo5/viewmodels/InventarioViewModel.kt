@@ -8,14 +8,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import android.app.Application // <-- AÑADIR IMPORT
+import androidx.lifecycle.AndroidViewModel // <-- AÑADIR IMPORT y quitar el de ViewModel normal
+
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase // <-- AÑADIR IMPORT
+import com.pneuma.fotomarwms_grupo5.db.entities.ConteoLocal // <-- AÑADIR IMPORT
+
 /**
  * ViewModel para gestión de inventario
  * Maneja conteo físico, progreso, diferencias y finalización de inventario
  */
-class InventarioViewModel : ViewModel() {
-
+class InventarioViewModel(application: Application) : AndroidViewModel(application) {
     // ========== ESTADOS DE INVENTARIO ==========
 
+    // Obtener el DAO de conteos pendientes al iniciar el ViewModel
+    private val conteoDao = AppDatabase.getDatabase(application).conteoDao()
     private val _progresoState = MutableStateFlow<UiState<ProgresoInventario>>(UiState.Idle)
     val progresoState: StateFlow<UiState<ProgresoInventario>> = _progresoState.asStateFlow()
 
@@ -73,38 +80,59 @@ class InventarioViewModel : ViewModel() {
     // ========== REGISTRO DE CONTEO ==========
 
     /**
-     * Registra un conteo físico para una ubicación y producto específico
-     * Conecta con: POST /api/inventario/conteo
+     * Registra un conteo físico.
+     * PRIMERO guarda localmente en SQLite, luego (en el futuro) intenta enviar al backend.
      * @param sku SKU del producto contado
      * @param idUbicacion ID de la ubicación
      * @param cantidadFisica Cantidad real encontrada físicamente
      */
     fun registrarConteo(sku: String, idUbicacion: Int, cantidadFisica: Int) {
-        viewModelScope.launch {
+        viewModelScope.launch { // Ejecutar en segundo plano (coroutine)
             try {
                 _conteoState.value = UiState.Loading
 
-                val request = ConteoRequest(
+                // 1. Crear el objeto ConteoLocal con los datos
+                val conteoPendiente = ConteoLocal(
                     sku = sku,
                     idUbicacion = idUbicacion,
                     cantidadFisica = cantidadFisica
+                    // idLocal y timestamp se generan automáticamente
                 )
 
-                // TODO: Conectar con backend
-                // inventarioRepository.registrarConteo(request)
+                // 2. Guardar en la base de datos local ANTES de cualquier otra cosa
+                val idGenerado = conteoDao.insertarConteoPendiente(conteoPendiente)
+                println("✅ Conteo ${idGenerado} (SKU: $sku) guardado localmente.") // Mensaje de prueba
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
+                // 3. (FUTURO - Lógica de envío al Backend)
+                // Aquí iría el código para intentar enviar 'conteoPendiente' al backend.
+                // val exitoBackend = miApi.enviarConteoAlBackend(conteoPendiente) // Función imaginaria
 
-                _conteoState.value = UiState.Success(true)
+                // 4. (FUTURO - Borrado si Backend OK)
+                // Si el backend responde correctamente (ej. HTTP 200 OK):
+                // if (exitoBackend) {
+                //     conteoDao.borrarConteoPendientePorId(idGenerado)
+                //     println("✅ Conteo ${idGenerado} confirmado por backend y borrado localmente.")
+                //     _conteoState.value = UiState.Success(true) // Notificar éxito REAL
+                // } else {
+                //     // Si el backend falla, el registro local persiste.
+                //     // Podrías notificar un error de sincronización pero mantener el estado local como "guardado".
+                //     _conteoState.value = UiState.Error("Guardado localmente, pero falló el envío al servidor.")
+                //     println("⚠️ Falló envío de conteo ${idGenerado} al backend. Queda pendiente.")
+                // }
 
-                // Actualizar progreso después del conteo
+                // --- Simulación TEMPORAL: Asumimos éxito solo con guardado local ---
+                _conteoState.value = UiState.Success(true) // Notifica éxito (local por ahora)
+                // --- Fin Simulación ---
+
+                // Actualizar progreso después del conteo (esto ya estaba)
                 getProgreso()
 
             } catch (e: Exception) {
+                // Error al guardar en la BD LOCAL (esto es más grave)
                 _conteoState.value = UiState.Error(
-                    message = "Error al registrar conteo: ${e.message}"
+                    message = "Error CRÍTICO al guardar conteo localmente: ${e.message}"
                 )
+                println("❌ Error CRÍTICO al guardar conteo localmente: ${e.message}")
             }
         }
     }

@@ -4,21 +4,28 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.pneuma.fotomarwms_grupo5.db.daos.SolicitudMovimientoDao
-import com.pneuma.fotomarwms_grupo5.db.entities.SolicitudMovimientoLocal
 
-import com.pneuma.fotomarwms_grupo5.db.daos.UsuarioDao // <-- 1. IMPORTA EL NUEVO DAO
-import com.pneuma.fotomarwms_grupo5.db.entities.UsuarioLocal // <-- 2. IMPORTA LA NUEVA ENTIDAD
+
+//DAOS
+import com.pneuma.fotomarwms_grupo5.db.daos.UsuarioDao
+import com.pneuma.fotomarwms_grupo5.db.daos.SolicitudMovimientoDao
+import com.pneuma.fotomarwms_grupo5.db.daos.ConteoDao
+//Clases
+import com.pneuma.fotomarwms_grupo5.db.entities.SolicitudMovimientoLocal
+import com.pneuma.fotomarwms_grupo5.db.entities.UsuarioLocal
+import com.pneuma.fotomarwms_grupo5.db.entities.ConteoLocal
 
 
 @Database(
     entities = [
 
     SolicitudMovimientoLocal::class,
-    UsuarioLocal::class
+    UsuarioLocal::class,
+    ConteoLocal::class
+
    ],
 
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -26,6 +33,8 @@ abstract class AppDatabase : RoomDatabase() {
     // Room implementará esto para darnos el DAO
     abstract fun solicitudMovimientoDao(): SolicitudMovimientoDao
     abstract fun usuarioDao(): UsuarioDao
+
+    abstract fun conteoDao(): ConteoDao
 
     // --- Singleton para tener una sola instancia de la BD ---
     companion object {
