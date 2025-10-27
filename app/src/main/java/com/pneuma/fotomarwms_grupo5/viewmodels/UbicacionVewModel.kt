@@ -7,15 +7,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase
+import com.pneuma.fotomarwms_grupo5.db.entities.AsignacionUbicacionLocal
 
 /**
+ *
+ *
  * ViewModel para gestión de ubicaciones en bodega
  * Maneja ubicaciones, asignación de productos y consultas por piso
  */
-class UbicacionViewModel : ViewModel() {
-
+class UbicacionViewModel(application: Application) : AndroidViewModel(application) {
     // ========== ESTADOS DE UBICACIONES ==========
 
+    // Obtener el DAO para asignaciones pendientes
+    private val asignacionDao = AppDatabase.getDatabase(application).asignacionUbicacionDao()
     private val _ubicacionesState = MutableStateFlow<UiState<List<Ubicacion>>>(UiState.Idle)
     val ubicacionesState: StateFlow<UiState<List<Ubicacion>>> = _ubicacionesState.asStateFlow()
 
@@ -147,26 +155,52 @@ class UbicacionViewModel : ViewModel() {
         codigoUbicacion: String,
         cantidad: Int
     ) {
-        viewModelScope.launch {
+        // Asegurarse que esta acción solo la hagan roles con permiso (Jefe/Supervisor)
+        // La lógica para Operador debería ir por AprobacionViewModel
+
+        viewModelScope.launch { // Ejecutar en segundo plano
             try {
                 _asignacionState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val request = AsignarUbicacionRequest(sku, codigoUbicacion, cantidad)
-                // ubicacionRepository.asignarProducto(request)
+                // 1. Crear el objeto AsignacionUbicacionLocal
+                val asignacionPendiente = AsignacionUbicacionLocal(
+                    sku = sku,
+                    codigoUbicacion = codigoUbicacion,
+                    cantidad = cantidad
+                    // idLocal y timestamp se generan automáticamente
+                )
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
+                // 2. Guardar en SQLite ANTES de cualquier llamada de red
+                val idGenerado = asignacionDao.insertarAsignacionPendiente(asignacionPendiente)
+                println("✅ Asignación ${idGenerado} (SKU: $sku -> Ubic: $codigoUbicacion) guardada localmente.")
 
+                // 3. (FUTURO - Lógica Backend)
+                // Aquí iría el intento de enviar 'asignacionPendiente' al backend
+                // val exitoBackend = miApi.enviarAsignacionAlBackend(asignacionPendiente)
+
+                // 4. (FUTURO - Borrado si Backend OK)
+                // if (exitoBackend) {
+                //     asignacionDao.borrarAsignacionPendientePorId(idGenerado)
+                //     println("✅ Asignación ${idGenerado} confirmada por backend y borrada localmente.")
+                //     _asignacionState.value = UiState.Success(true)
+                // } else {
+                //     _asignacionState.value = UiState.Error("Guardado localmente, pero falló el envío de asignación.")
+                //     println("⚠️ Falló envío de asignación ${idGenerado} al backend.")
+                // }
+
+                // --- Simulación TEMPORAL: Éxito con guardado local ---
                 _asignacionState.value = UiState.Success(true)
+                // --- Fin Simulación ---
 
-                // Recargar ubicación para ver el cambio
+                // Recargar ubicación para ver el cambio (esto ya estaba)
+                // Considera si quieres recargar solo si el backend confirma, o inmediatamente
                 getUbicacionDetail(codigoUbicacion)
 
             } catch (e: Exception) {
                 _asignacionState.value = UiState.Error(
-                    message = "Error al asignar producto: ${e.message}"
+                    message = "Error CRÍTICO al guardar asignación localmente: ${e.message}"
                 )
+                println("❌ Error CRÍTICO al guardar asignación localmente: ${e.message}")
             }
         }
     }
