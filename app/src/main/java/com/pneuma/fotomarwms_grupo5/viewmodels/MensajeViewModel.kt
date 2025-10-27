@@ -8,15 +8,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase
+import com.pneuma.fotomarwms_grupo5.db.entities.MensajeLocal
+
 /**
  * ViewModel para sistema de mensajería
  * Maneja mensajes entre Jefe/Supervisor y Operadores
  * También gestiona notificaciones automáticas del sistema
  */
-class MensajeViewModel : ViewModel() {
-
+class MensajeViewModel(application: Application) : AndroidViewModel(application) {
     // ========== ESTADOS DE MENSAJES ==========
 
+    // Obtener el DAO de mensajes pendientes
+    private val mensajeDao = AppDatabase.getDatabase(application).mensajeDao()
     private val _mensajesState = MutableStateFlow<UiState<List<Mensaje>>>(UiState.Idle)
     val mensajesState: StateFlow<UiState<List<Mensaje>>> = _mensajesState.asStateFlow()
 
@@ -276,33 +283,49 @@ class MensajeViewModel : ViewModel() {
         contenido: String,
         importante: Boolean = false
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch { // Ejecutar en segundo plano
             try {
                 _enviarMensajeState.value = UiState.Loading
 
-                val request = MensajeRequest(
+                // 1. Crear el objeto MensajeLocal
+                val mensajePendiente = MensajeLocal(
                     idDestinatario = idDestinatario,
                     titulo = titulo,
                     contenido = contenido,
                     importante = importante
+                    // idLocal y timestamp se generan automáticamente
                 )
 
-                // TODO: Conectar con backend
-                // mensajeRepository.enviarMensaje(request)
+                // 2. Guardar en SQLite ANTES de intentar enviar
+                val idGenerado = mensajeDao.insertarMensajePendiente(mensajePendiente)
+                println("✅ Mensaje individual ${idGenerado} guardado localmente.") // Mensaje de prueba
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
+                // 3. (FUTURO - Lógica Backend)
+                // Aquí iría la llamada a tu API para enviar el 'mensajePendiente'
+                // val exitoBackend = miApi.enviarMensajeAlBackend(mensajePendiente)
 
+                // 4. (FUTURO - Borrado si Backend OK)
+                // if (exitoBackend) {
+                //     mensajeDao.borrarMensajePendientePorId(idGenerado)
+                //     println("✅ Mensaje ${idGenerado} confirmado por backend y borrado localmente.")
+                //     _enviarMensajeState.value = UiState.Success(true)
+                // } else {
+                //     _enviarMensajeState.value = UiState.Error("Guardado localmente, pero falló el envío al servidor.")
+                //     println("⚠️ Falló envío de mensaje ${idGenerado} al backend.")
+                // }
+
+                // --- Simulación TEMPORAL: Éxito con guardado local ---
                 _enviarMensajeState.value = UiState.Success(true)
+                // --- Fin Simulación ---
 
             } catch (e: Exception) {
                 _enviarMensajeState.value = UiState.Error(
-                    message = "Error al enviar mensaje: ${e.message}"
+                    message = "Error CRÍTICO al guardar mensaje localmente: ${e.message}"
                 )
+                println("❌ Error CRÍTICO al guardar mensaje localmente: ${e.message}")
             }
         }
     }
-
     /**
      * Envía un mensaje broadcast (para todos los operadores)
      * Conecta con: POST /api/mensajes (con idDestinatario = null)
@@ -316,29 +339,45 @@ class MensajeViewModel : ViewModel() {
         contenido: String,
         importante: Boolean = false
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch { // Ejecutar en segundo plano
             try {
                 _enviarMensajeState.value = UiState.Loading
 
-                val request = MensajeRequest(
-                    idDestinatario = null, // null = broadcast
+                // 1. Crear el objeto MensajeLocal (idDestinatario es null para broadcast)
+                val mensajePendiente = MensajeLocal(
+                    idDestinatario = null, // null indica broadcast
                     titulo = titulo,
                     contenido = contenido,
                     importante = importante
                 )
 
-                // TODO: Conectar con backend
-                // mensajeRepository.enviarMensaje(request)
+                // 2. Guardar en SQLite ANTES de intentar enviar
+                val idGenerado = mensajeDao.insertarMensajePendiente(mensajePendiente)
+                println("✅ Mensaje broadcast ${idGenerado} guardado localmente.") // Mensaje de prueba
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
+                // 3. (FUTURO - Lógica Backend)
+                // Aquí iría la llamada a tu API para enviar el 'mensajePendiente' (tipo broadcast)
+                // val exitoBackend = miApi.enviarMensajeAlBackend(mensajePendiente)
 
+                // 4. (FUTURO - Borrado si Backend OK)
+                // if (exitoBackend) {
+                //     mensajeDao.borrarMensajePendientePorId(idGenerado)
+                //     println("✅ Mensaje broadcast ${idGenerado} confirmado y borrado localmente.")
+                //     _enviarMensajeState.value = UiState.Success(true)
+                // } else {
+                //     _enviarMensajeState.value = UiState.Error("Guardado localmente, pero falló el envío broadcast.")
+                //     println("⚠️ Falló envío de mensaje broadcast ${idGenerado} al backend.")
+                // }
+
+                // --- Simulación TEMPORAL: Éxito con guardado local ---
                 _enviarMensajeState.value = UiState.Success(true)
+                // --- Fin Simulación ---
 
             } catch (e: Exception) {
                 _enviarMensajeState.value = UiState.Error(
-                    message = "Error al enviar mensaje broadcast: ${e.message}"
+                    message = "Error CRÍTICO al guardar mensaje broadcast localmente: ${e.message}"
                 )
+                println("❌ Error CRÍTICO al guardar mensaje broadcast localmente: ${e.message}")
             }
         }
     }
