@@ -18,6 +18,7 @@ import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.models.Usuario
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 import com.pneuma.fotomarwms_grupo5.viewmodels.UsuarioViewModel
+import com.pneuma.fotomarwms_grupo5.models.*
 
 /**
  * Pantalla de Gestión de Usuarios
@@ -364,15 +365,25 @@ private fun CreateUsuarioDialog(
                 onClick = {
                     if (nombre.isNotBlank() && email.isNotBlank() &&
                         password.isNotBlank() && rolSeleccionado != null) {
-                        usuarioViewModel.createUsuario(
+
+                        // 1. Usa la clase que creamos: "CreateUsuarioRequest"
+                        val nuevoUsuarioRequest = CreateUsuarioRequest(
                             nombre = nombre,
                             email = email,
-                            password = password,
-                            rol = rolSeleccionado!!.name
+                            // 2. Nuestra clase usa 'contrasena', no 'password'
+                            contrasena = password,
+                            // 3. Le pasamos el Enum 'Rol' completo, no el .name
+                            rol = rolSeleccionado!!
                         )
+
+                        // Ahora sí, llamamos a la función del ViewModel
+                        // (Asumiendo que tu ViewModel se llama 'usuarioViewModel')
+                        usuarioViewModel.createUsuario(nuevoUsuarioRequest)
+
+                        // Y probablemente quieras cerrar el diálogo después de crear
+                        // onDismiss() o onConfirm()
                     }
-                },
-                enabled = !isLoading
+                }
             ) {
                 Text("Crear")
             }

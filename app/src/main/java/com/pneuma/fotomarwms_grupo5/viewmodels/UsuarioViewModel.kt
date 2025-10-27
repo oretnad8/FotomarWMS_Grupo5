@@ -8,14 +8,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase // <-- IMPORTA BD
+import com.pneuma.fotomarwms_grupo5.db.entities.UsuarioLocal // <-- IMPORTA ENTIDAD LOCAL
+
+import com.pneuma.fotomarwms_grupo5.models.*
+
+
+
 /**
  * ViewModel para gestión de usuarios
  * Solo para rol ADMIN
  * Maneja creación, actualización, eliminación y activación/desactivación de usuarios
  */
-class UsuarioViewModel : ViewModel() {
+// CAMBIAMOS A AndroidViewModel para obtener 'application'
+class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
+
 
     // ========== ESTADOS DE USUARIOS ==========
+
+    // Obtenemos el nuevo DAO directamente desde AppDatabase
+    private val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
+
 
     private val _usuariosState = MutableStateFlow<UiState<List<Usuario>>>(UiState.Idle)
     val usuariosState: StateFlow<UiState<List<Usuario>>> = _usuariosState.asStateFlow()
@@ -26,12 +41,15 @@ class UsuarioViewModel : ViewModel() {
     private val _usuarioDetailState = MutableStateFlow<UiState<Usuario>>(UiState.Idle)
     val usuarioDetailState: StateFlow<UiState<Usuario>> = _usuarioDetailState.asStateFlow()
 
+    // --- ESTADO PARA CREAR USUARIO ---
     private val _createUsuarioState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val createUsuarioState: StateFlow<UiState<Boolean>> = _createUsuarioState.asStateFlow()
 
+    // --- ESTADO PARA ACTUALIZAR USUARIO---
     private val _updateUsuarioState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val updateUsuarioState: StateFlow<UiState<Boolean>> = _updateUsuarioState.asStateFlow()
 
+    // --- ESTADO PARA BORRAR USUARIO ---
     private val _deleteUsuarioState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val deleteUsuarioState: StateFlow<UiState<Boolean>> = _deleteUsuarioState.asStateFlow()
 
@@ -162,38 +180,45 @@ class UsuarioViewModel : ViewModel() {
      * @param password Contraseña inicial
      * @param rol Rol del usuario (ADMIN, JEFE, SUPERVISOR, OPERADOR)
      */
-    fun createUsuario(
-        nombre: String,
-        email: String,
-        password: String,
-        rol: String
-    ) {
-        viewModelScope.launch {
+    // --- CREAR USUARIO (Modificado para guardar localmente primero) ---
+    fun createUsuario(request: CreateUsuarioRequest) {
+        viewModelScope.launch { // Coroutine para operaciones de BD
             try {
                 _createUsuarioState.value = UiState.Loading
 
-                val request = UsuarioRequest(
-                    nombre = nombre,
-                    email = email,
-                    password = password,
-                    rol = rol
+                // 1. Crear la entidad local (sin la contraseña por seguridad)
+                val usuarioLocal = UsuarioLocal(
+                    nombre = request.nombre,
+                    email = request.email,
+                    rol = request.rol.name // Guardamos el nombre del Enum ("ADMIN", "OPERADOR", etc.)
                 )
 
-                // TODO: Conectar con backend
-                // usuarioRepository.createUsuario(request)
+                // 2. Guardar en SQLite ANTES de intentar enviar al backend
+                val idGeneradoLocal = usuarioDao.insertarUsuarioPendiente(usuarioLocal)
+                println("✅ Usuario ${request.email} pendiente de creación (ID local: ${idGeneradoLocal}) guardado en SQLite.")
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
+                // 3. (FUTURO) Aquí llamas a tu función para crear el usuario en el backend...
+                //    Necesitarás pasar el 'request' original que sí tiene la contraseña.
+                //    ej: val exitoBackend = miApi.crearUsuarioEnBackend(request)
 
+                // 4. (FUTURO) Si el backend responde OK (ej. 200), entonces borras el pendiente de SQLite:
+                // if (exitoBackend) {
+                //    borrarUsuarioPendienteLocalmente(idGeneradoLocal)
+                //    _createUsuarioState.value = UiState.Success(true) // Notifica éxito real
+                //    getAllUsuarios() // Recarga la lista para mostrar el nuevo usuario (si el backend lo devuelve)
+                // } else {
+                //    _createUsuarioState.value = UiState.Error("Falló el envío al backend, pero el usuario está guardado localmente.")
+                //    // Aquí podrías implementar lógica de reintento
+                // }
+
+                // --- Notificación temporal de éxito (solo guardado local) ---
                 _createUsuarioState.value = UiState.Success(true)
+                // getAllUsuarios() // Podrías llamar a getAllUsuarios si quieres ver un mock actualizado, o esperar al backend
+                // --- Fin Simulación ---
 
-                // Recargar lista de usuarios
-                getAllUsuarios()
 
             } catch (e: Exception) {
-                _createUsuarioState.value = UiState.Error(
-                    message = "Error al crear usuario: ${e.message}"
-                )
+                _createUsuarioState.value = UiState.Error("Error DB al guardar usuario pendiente: ${e.message}")
             }
         }
     }

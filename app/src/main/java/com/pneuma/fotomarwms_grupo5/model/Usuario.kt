@@ -55,3 +55,10 @@ data class LoginRequest(
     val email: String,
     val password: String
 )
+
+data class CreateUsuarioRequest(
+    val nombre: String,
+    val email: String,
+    val rol: Rol, // Usamos el Enum 'Rol' que ya tienes
+    val contrasena: String // La contraseña que escribe el usuario
+)
