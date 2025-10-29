@@ -14,44 +14,52 @@
 
 ```
 app/src/main/java/com/pneuma/fotomarwms_grupo5/
-├── MainActivity.kt              # Actividad principal con navegación
+├── MainActivity.kt              # Actividad principal con navegación y animaciones
 ├── model/
-│   └── Models.kt                # Modelos de datos (Usuario, Producto, Aprobación, etc.)
+│   └── ... (Models.kt)          # Modelos de datos (Producto, Usuario, etc.)
 ├── navigation/
 │   ├── Screen.kt                # Definición de rutas
 │   └── NavigationEvent.kt       # Eventos de navegación
+├── db/                          # NUEVO: Base de datos Room (Offline-First)
+│   ├── AppDatabase.kt           # Definición de la base de datos
+│   ├── daos/                    # Data Access Objects (ConteoDao, MensajeDao, etc.)
+│   └── entities/                # Entidades locales (ConteoLocal, MensajeLocal, etc.)
 ├── viewmodels/                  # Lógica de presentación MVVM
-│   ├── LoginViewModel.kt
-│   ├── DashboardOperadorViewModel.kt
-│   ├── DashboardJefeViewModel.kt
-│   ├── DashboardAdminViewModel.kt
-│   ├── AprobacionesViewModel.kt
-│   ├── MensajesViewModel.kt
-│   ├── BusquedaViewModel.kt
-│   ├── DetalleProductoViewModel.kt
-│   ├── SolicitudMovimientoViewModel.kt
+│   ├── AuthViewModel.kt
+│   ├── ProductoViewModel.kt
+│   ├── UbicacionViewModel.kt
+│   ├── AprobacionViewModel.kt
+│   ├── MensajeViewModel.kt
 │   ├── InventarioViewModel.kt
-│   ├── GestionUbicacionesViewModel.kt
-│   ├── PerfilViewModel.kt
-│   └── GestionUsuariosViewModel.kt
-├── views/                       # Pantallas composables
-│   ├── LoginScreen.kt
-│   ├── DashboardOperadorScreen.kt
-│   ├── DashboardJefeScreen.kt
-│   ├── DashboardAdminScreen.kt
-│   ├── AprobacionesScreen.kt
-│   ├── MensajesScreen.kt
-│   ├── BusquedaScreen.kt
-│   ├── DetalleProductoScreen.kt
-│   ├── SolicitudMovimientoScreen.kt
-│   ├── InventarioScreen.kt
-│   ├── GestionUbicacionesScreen.kt
-│   ├── PerfilScreen.kt
-│   └── GestionUsuariosScreen.kt
-└── ui/theme/                    # Temas y estilos
-    ├── Color.kt
-    ├── Theme.kt
-    └── Type.kt
+│   └── UsuarioViewModel.kt
+├── ui/
+│   ├── screen/                  # Pantallas composables
+│   │   ├── LoginScreen.kt
+│   │   ├── DashboardAdminScreen.kt
+│   │   ├── DashboardJefeScreen.kt
+│   │   ├── DashboardOperadorScreen.kt
+│   │   ├── BusquedaScreen.kt
+│   │   ├── DetalleProductoScreen.kt
+│   │   ├── GestionUbicacionesScreen.kt
+│   │   ├── DetalleUbicacionScreen.kt
+│   │   ├── AprobacionesScreen.kt
+│   │   ├── DetalleAprobacionScreen.kt
+│   │   ├── SolicitudMovimientoScreen.kt
+│   │   ├── RegistroDirectoScreen.kt
+│   │   ├── InventarioScreen.kt
+│   │   ├── DiferenciasInventarioScreen.kt
+│   │   ├── ConteoUbicacionScreen.kt
+│   │   ├── MensajesScreen.kt
+│   │   ├── EnviarMensajeScreen.kt
+│   │   ├── GestionUsuariosScreen.kt
+│   │   ├── PerfilScreen.kt
+│   │   ├── ConfiguracionScreen.kt
+│   │   └── SplashScreen.kt
+│   ├── componentes/             # Componentes reutilizables
+│   │   ├── BarcodeScanner.kt    # NUEVO: Componente de escáner
+│   │   ├── Buttons.kt, Cards.kt, etc.
+│   └── theme/                   # Temas y estilos
+│       ├── Color.kt, Theme.kt, Type.kt
 ```
 
 ---
