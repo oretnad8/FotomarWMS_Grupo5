@@ -1,5 +1,4 @@
-package com.pneuma.fotomarwms_grupo5.models
-
+package com.pneuma.fotomarwms_grupo5.model
 /**
  * Modelo de datos para Mensaje
  * Sistema de comunicación entre Jefe/Supervisor y Operadores

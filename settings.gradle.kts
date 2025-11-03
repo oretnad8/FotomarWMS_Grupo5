@@ -1,14 +1,8 @@
 pluginManagement {
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        google()
         mavenCentral()
-        gradlePluginPortal()
+        gradlePluginPortal() // Add this line
     }
 }
 dependencyResolutionManagement {
@@ -21,4 +15,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "FotomarWMS_grupo5"
 include(":app")
- 

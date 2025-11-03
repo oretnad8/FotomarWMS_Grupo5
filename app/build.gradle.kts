@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -59,6 +60,19 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended")
 
+    // ========== ROOM ==========
+    val room_version = "2.6.1" // Usa la última versión estable
+    implementation("androidx.room:room-runtime:$room_version")
+    annotationProcessor("androidx.room:room-compiler:$room_version")
+    // Opcional - Soporte para Kotlin Symbol Processing (KSP) -> Recomendado
+    ksp("androidx.room:room-compiler:$room_version")
+    // Opcional - Soporte para Coroutines con Room
+    implementation("androidx.room:room-ktx:$room_version")
+    // Opcional - Paging 3
+    implementation("androidx.room:room-paging:$room_version")
+    // Opcional - Testing
+    testImplementation("androidx.room:room-testing:$room_version")
+
     // ========== CAMERAX (Para escaneo de códigos) ==========
     implementation("androidx.camera:camera-core:1.3.1")
     implementation("androidx.camera:camera-camera2:1.3.1")
@@ -77,6 +91,12 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+
+    // ========== NETWORKING (Retrofit, OkHttp, Gson) ==========
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0") // Para ver logs de red
 
     // ========== DEBUG ==========
     debugImplementation(libs.androidx.ui.tooling)

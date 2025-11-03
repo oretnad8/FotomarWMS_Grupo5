@@ -20,7 +20,7 @@ import com.pneuma.fotomarwms_grupo5.navigation.Screen
 import com.pneuma.fotomarwms_grupo5.ui.screen.*
 import com.pneuma.fotomarwms_grupo5.ui.theme.TestTheme
 import com.pneuma.fotomarwms_grupo5.viewmodels.*
-
+import com.pneuma.fotomarwms_grupo5.data.local.AppDatabase
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -59,6 +59,7 @@ fun FotomarWMSApp() {
     val mensajeViewModel: MensajeViewModel = viewModel()
     val inventarioViewModel: InventarioViewModel = viewModel()
     val usuarioViewModel: UsuarioViewModel = viewModel()
+    val database: AppDatabase by lazy { AppDatabase.getDatabase(this) }
 
     // Layout base
     Scaffold(

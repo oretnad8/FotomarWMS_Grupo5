@@ -26,7 +26,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FotomarWMS_grupo5">
+        android:theme="@style/Theme.FotomarWMS_grupo5"
+        android:usesCleartextTraffic="true">
 
         <!-- MainActivity - Punto de entrada de la aplicación -->
         <activity
