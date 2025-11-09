@@ -1,32 +1,36 @@
 package com.pneuma.fotomarwms_grupo5.db.daos
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
+import androidx.room.*
 import com.pneuma.fotomarwms_grupo5.db.entities.AsignacionUbicacionLocal
 import kotlinx.coroutines.flow.Flow
 
-@Dao // Indica a Room que esto es un DAO
+@Dao
 interface AsignacionUbicacionDao {
 
-    /**
-     * Guarda una asignación de ubicación pendiente en la BD local.
-     * Devuelve el ID local autogenerado.
-     */
-    @Insert
-    suspend fun insertarAsignacionPendiente(asignacion: AsignacionUbicacionLocal): Long
-
-    /**
-     * Borra una asignación pendiente de la BD local usando su ID.
-     * Se llamará cuando el backend confirme la asignación.
-     */
-    @Query("DELETE FROM asignaciones_pendientes WHERE idLocal = :id")
-    suspend fun borrarAsignacionPendientePorId(id: Long): Int // Devuelve filas borradas (debería ser 1)
-
-    /**
-     * (Opcional) Obtiene todas las asignaciones pendientes.
-     * Útil para reintentos futuros.
-     */
     @Query("SELECT * FROM asignaciones_pendientes ORDER BY timestamp ASC")
-    fun obtenerAsignacionesPendientes(): Flow<List<AsignacionUbicacionLocal>>
+    fun getAllPendientes(): Flow<List<AsignacionUbicacionLocal>>
+
+    @Query("SELECT * FROM asignaciones_pendientes WHERE idLocal = :idLocal LIMIT 1")
+    suspend fun getPendienteById(idLocal: Long): AsignacionUbicacionLocal?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(asignacion: AsignacionUbicacionLocal): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(asignaciones: List<AsignacionUbicacionLocal>)
+
+    @Update
+    suspend fun update(asignacion: AsignacionUbicacionLocal)
+
+    @Delete
+    suspend fun delete(asignacion: AsignacionUbicacionLocal)
+
+    @Query("DELETE FROM asignaciones_pendientes WHERE idLocal = :idLocal")
+    suspend fun deleteById(idLocal: Long)
+
+    @Query("DELETE FROM asignaciones_pendientes")
+    suspend fun deleteAll()
+
+    @Query("SELECT COUNT(*) FROM asignaciones_pendientes")
+    suspend fun countPendientes(): Int
 }

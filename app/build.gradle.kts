@@ -72,6 +72,18 @@ dependencies {
     // ========== ACCOMPANIST (Para permisos en Compose) ==========
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
+    // ========== ROOM DATABASE ==========
+    implementation(libs.androidx.room.runtime)
+    kapt(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
+
+    // ========== RETROFIT + NETWORKING ==========
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+
     // ========== TESTING ==========
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -82,8 +94,4 @@ dependencies {
     // ========== DEBUG ==========
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-
-    implementation(libs.androidx.room.runtime)
-    kapt(libs.androidx.room.compiler) // <-- ASEGÚRATE 'kapt'
-    implementation(libs.androidx.room.ktx) // Para Coroutines
 }

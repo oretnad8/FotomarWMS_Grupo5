@@ -5,62 +5,54 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
+// DAOS
+import com.pneuma.fotomarwms_grupo5.db.daos.*
 
-
-//DAOS
-import com.pneuma.fotomarwms_grupo5.db.daos.UsuarioDao
-import com.pneuma.fotomarwms_grupo5.db.daos.SolicitudMovimientoDao
-import com.pneuma.fotomarwms_grupo5.db.daos.ConteoDao
-import com.pneuma.fotomarwms_grupo5.db.daos.MensajeDao
-import com.pneuma.fotomarwms_grupo5.db.daos.AsignacionUbicacionDao
-//Clases
-import com.pneuma.fotomarwms_grupo5.db.entities.SolicitudMovimientoLocal
-import com.pneuma.fotomarwms_grupo5.db.entities.UsuarioLocal
-import com.pneuma.fotomarwms_grupo5.db.entities.ConteoLocal
-import com.pneuma.fotomarwms_grupo5.db.entities.MensajeLocal
-import com.pneuma.fotomarwms_grupo5.db.entities.AsignacionUbicacionLocal
+// ENTITIES
+import com.pneuma.fotomarwms_grupo5.db.entities.*
 
 @Database(
     entities = [
-
-    SolicitudMovimientoLocal::class,
-    UsuarioLocal::class,
-    ConteoLocal::class,
-    MensajeLocal::class,
-    AsignacionUbicacionLocal::class
-
-   ],
-
-    version = 5,
+        ProductoLocal::class,
+        UbicacionLocal::class,
+        SolicitudMovimientoLocal::class,
+        AprobacionLocal::class,
+        UsuarioLocal::class,
+        ConteoLocal::class,
+        MensajeLocal::class,
+        AsignacionUbicacionLocal::class
+    ],
+    version = 6, // Incrementado por los cambios
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
-    // Room implementará esto para darnos el DAO
+    // DAOs
+    abstract fun productoDao(): ProductoDao
+    abstract fun ubicacionDao(): UbicacionDao
     abstract fun solicitudMovimientoDao(): SolicitudMovimientoDao
+    abstract fun aprobacionDao(): AprobacionDao
     abstract fun usuarioDao(): UsuarioDao
     abstract fun conteoDao(): ConteoDao
     abstract fun mensajeDao(): MensajeDao
     abstract fun asignacionUbicacionDao(): AsignacionUbicacionDao
 
-    // --- Singleton para tener una sola instancia de la BD ---
     companion object {
-        @Volatile private var INSTANCE: AppDatabase? = null
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "fotomar_wms_db_simple" // Nombre archivo BD
+                    "fotomar_wms_db"
                 )
-                //Para manejar el cambio de versiones BORRANDO datos viejos
-                .fallbackToDestructiveMigration()
-                .build()
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
         }
     }
-
 }
