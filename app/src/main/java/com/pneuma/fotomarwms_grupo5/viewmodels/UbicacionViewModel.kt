@@ -257,6 +257,14 @@ class UbicacionViewModel(
     }
 
     /**
+     * Limpia el filtro de piso y muestra todas las ubicaciones
+     */
+    fun clearPisoFilter() {
+        _pisoSeleccionado.value = null
+        getAllUbicaciones()
+    }
+
+    /**
      * Valida el formato de un código de ubicación
      * @param codigo Código a validar (debe ser formato: A-12, B-45, C-60)
      * @return true si el formato es válido
