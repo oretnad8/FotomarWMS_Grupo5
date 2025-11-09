@@ -3,6 +3,8 @@ package com.pneuma.fotomarwms_grupo5.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pneuma.fotomarwms_grupo5.models.*
+import com.pneuma.fotomarwms_grupo5.network.ProductoRequest
+import com.pneuma.fotomarwms_grupo5.repository.ProductoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,8 +13,11 @@ import kotlinx.coroutines.launch
 /**
  * ViewModel para gestión de productos
  * Maneja búsqueda, detalle, creación y actualización de productos
+ * Usa ProductoRepository con patrón local-first
  */
-class ProductoViewModel : ViewModel() {
+class ProductoViewModel(
+    private val productoRepository: ProductoRepository
+) : ViewModel() {
 
     // ========== ESTADOS DE PRODUCTOS ==========
 
@@ -28,6 +33,15 @@ class ProductoViewModel : ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _createState = MutableStateFlow<UiState<Producto>>(UiState.Idle)
+    val createState: StateFlow<UiState<Producto>> = _createState.asStateFlow()
+
+    private val _updateState = MutableStateFlow<UiState<Producto>>(UiState.Idle)
+    val updateState: StateFlow<UiState<Producto>> = _updateState.asStateFlow()
+
+    private val _deleteState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val deleteState: StateFlow<UiState<Unit>> = _deleteState.asStateFlow()
+
     // ========== BÚSQUEDA DE PRODUCTOS ==========
 
     /**
@@ -42,69 +56,15 @@ class ProductoViewModel : ViewModel() {
                 _searchState.value = UiState.Loading
                 _searchQuery.value = query
 
-                // TODO: Conectar con backend
-                // val response = productoRepository.search(query)
-
-                // MOCK TEMPORAL - Datos de ejemplo
-                kotlinx.coroutines.delay(800)
-
-                val mockProductos = listOf(
-                    Producto(
-                        sku = "CA30001",
-                        descripcion = "Cámara Canon EOS R5",
-                        stock = 15,
-                        codigoBarrasIndividual = "9876543210123",
-                        lpn = "LPN-001",
-                        lpnDesc = "Caja Cámaras Canon",
-                        fechaVencimiento = null,
-                        vencimientoCercano = false,
-                        ubicaciones = listOf(
-                            ProductoUbicacion(12, "A-12", 10),
-                            ProductoUbicacion(45, "B-45", 5)
-                        )
-                    ),
-                    Producto(
-                        sku = "FL30001",
-                        descripcion = "Flash Canon Speedlite 600EX",
-                        stock = 8,
-                        codigoBarrasIndividual = "9876543210456",
-                        lpn = "LPN-004",
-                        lpnDesc = "Caja Flash",
-                        fechaVencimiento = null,
-                        vencimientoCercano = false,
-                        ubicaciones = listOf(
-                            ProductoUbicacion(8, "A-08", 8)
-                        )
-                    ),
-                    Producto(
-                        sku = "AP30001",
-                        descripcion = "Adaptador Canon EF-EOS R",
-                        stock = 25,
-                        codigoBarrasIndividual = "9876543210789",
-                        lpn = "LPN-008",
-                        lpnDesc = "Caja Adaptadores",
-                        fechaVencimiento = "2025-12-31",
-                        vencimientoCercano = false,
-                        ubicaciones = listOf(
-                            ProductoUbicacion(3, "A-03", 15),
-                            ProductoUbicacion(60, "C-60", 10)
-                        )
-                    )
-                )
-
-                // Filtrar por query si existe
-                val filtered = if (query.isBlank()) {
-                    mockProductos
+                val result = productoRepository.searchProductos(query.ifBlank { null })
+                
+                _searchState.value = if (result.isSuccess) {
+                    UiState.Success(result.getOrNull()!!)
                 } else {
-                    mockProductos.filter {
-                        it.sku.contains(query, ignoreCase = true) ||
-                                it.descripcion.contains(query, ignoreCase = true) ||
-                                it.codigoBarrasIndividual?.contains(query, ignoreCase = true) == true ||
-                                it.lpn?.contains(query, ignoreCase = true) == true
-                    }
+                    UiState.Error(
+                        message = result.exceptionOrNull()?.message ?: "Error al buscar productos"
+                    )
                 }
-
-                _searchState.value = UiState.Success(filtered)
 
             } catch (e: Exception) {
                 _searchState.value = UiState.Error(
@@ -133,29 +93,17 @@ class ProductoViewModel : ViewModel() {
             try {
                 _productoDetailState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val producto = productoRepository.getProductoBySku(sku)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                val mockProducto = Producto(
-                    sku = sku,
-                    descripcion = "Producto de ejemplo - $sku",
-                    stock = 20,
-                    codigoBarrasIndividual = "1234567890123",
-                    lpn = "LPN-001",
-                    lpnDesc = "Caja ejemplo",
-                    fechaVencimiento = "2026-06-30",
-                    vencimientoCercano = false,
-                    ubicaciones = listOf(
-                        ProductoUbicacion(5, "A-05", 12),
-                        ProductoUbicacion(23, "B-23", 8)
+                val result = productoRepository.getProductoBySku(sku)
+                
+                if (result.isSuccess) {
+                    val producto = result.getOrNull()!!
+                    _selectedProducto.value = producto
+                    _productoDetailState.value = UiState.Success(producto)
+                } else {
+                    _productoDetailState.value = UiState.Error(
+                        message = result.exceptionOrNull()?.message ?: "Error al obtener producto"
                     )
-                )
-
-                _selectedProducto.value = mockProducto
-                _productoDetailState.value = UiState.Success(mockProducto)
+                }
 
             } catch (e: Exception) {
                 _productoDetailState.value = UiState.Error(
@@ -171,21 +119,29 @@ class ProductoViewModel : ViewModel() {
      * Crea un nuevo producto
      * Conecta con: POST /api/productos
      * Solo para ADMIN, JEFE, SUPERVISOR
+     * Usa patrón local-first: guarda local → envía backend → elimina si OK
      * @param request Datos del nuevo producto
      */
     fun createProducto(request: ProductoRequest) {
         viewModelScope.launch {
             try {
-                // TODO: Conectar con backend
-                // val response = productoRepository.createProducto(request)
+                _createState.value = UiState.Loading
 
-                kotlinx.coroutines.delay(500)
-
-                // Recargar lista de productos después de crear
-                searchProductos(_searchQuery.value)
+                val result = productoRepository.createProducto(request)
+                
+                if (result.isSuccess) {
+                    _createState.value = UiState.Success(result.getOrNull()!!)
+                    // Recargar lista de productos después de crear
+                    searchProductos(_searchQuery.value)
+                } else {
+                    // Puede estar guardado localmente aunque falle el backend
+                    _createState.value = UiState.Error(
+                        message = result.exceptionOrNull()?.message ?: "Error al crear producto"
+                    )
+                }
 
             } catch (e: Exception) {
-                _searchState.value = UiState.Error(
+                _createState.value = UiState.Error(
                     message = "Error al crear producto: ${e.message}"
                 )
             }
@@ -196,22 +152,30 @@ class ProductoViewModel : ViewModel() {
      * Actualiza un producto existente
      * Conecta con: PUT /api/productos/{sku}
      * Solo para ADMIN, JEFE, SUPERVISOR
+     * Usa patrón local-first: guarda local → envía backend → elimina si OK
      * @param sku SKU del producto a actualizar
      * @param request Datos actualizados
      */
     fun updateProducto(sku: String, request: ProductoRequest) {
         viewModelScope.launch {
             try {
-                // TODO: Conectar con backend
-                // val response = productoRepository.updateProducto(sku, request)
+                _updateState.value = UiState.Loading
 
-                kotlinx.coroutines.delay(500)
-
-                // Recargar detalle del producto
-                getProductoDetail(sku)
+                val result = productoRepository.updateProducto(sku, request)
+                
+                if (result.isSuccess) {
+                    _updateState.value = UiState.Success(result.getOrNull()!!)
+                    // Recargar detalle del producto
+                    getProductoDetail(sku)
+                } else {
+                    // Puede estar guardado localmente aunque falle el backend
+                    _updateState.value = UiState.Error(
+                        message = result.exceptionOrNull()?.message ?: "Error al actualizar producto"
+                    )
+                }
 
             } catch (e: Exception) {
-                _productoDetailState.value = UiState.Error(
+                _updateState.value = UiState.Error(
                     message = "Error al actualizar producto: ${e.message}"
                 )
             }
@@ -227,18 +191,49 @@ class ProductoViewModel : ViewModel() {
     fun deleteProducto(sku: String) {
         viewModelScope.launch {
             try {
-                // TODO: Conectar con backend
-                // productoRepository.deleteProducto(sku)
+                _deleteState.value = UiState.Loading
 
-                kotlinx.coroutines.delay(500)
-
-                // Recargar lista después de eliminar
-                searchProductos(_searchQuery.value)
+                val result = productoRepository.deleteProducto(sku)
+                
+                if (result.isSuccess) {
+                    _deleteState.value = UiState.Success(Unit)
+                    // Recargar lista después de eliminar
+                    searchProductos(_searchQuery.value)
+                } else {
+                    _deleteState.value = UiState.Error(
+                        message = result.exceptionOrNull()?.message ?: "Error al eliminar producto"
+                    )
+                }
 
             } catch (e: Exception) {
-                _searchState.value = UiState.Error(
+                _deleteState.value = UiState.Error(
                     message = "Error al eliminar producto: ${e.message}"
                 )
+            }
+        }
+    }
+
+    // ========== SINCRONIZACIÓN ==========
+
+    /**
+     * Sincroniza todos los productos pendientes con el backend
+     * Útil para sincronizar después de recuperar conexión
+     */
+    fun syncPendientes() {
+        viewModelScope.launch {
+            try {
+                val result = productoRepository.syncPendientes()
+                
+                if (result.isSuccess) {
+                    val syncCount = result.getOrNull() ?: 0
+                    // Opcional: Mostrar mensaje de éxito con cantidad sincronizada
+                    // Recargar lista si hay cambios
+                    if (syncCount > 0) {
+                        searchProductos(_searchQuery.value)
+                    }
+                }
+            } catch (e: Exception) {
+                // Error silencioso, se reintentará después
             }
         }
     }
@@ -262,6 +257,27 @@ class ProductoViewModel : ViewModel() {
     }
 
     /**
+     * Limpia el estado de creación
+     */
+    fun clearCreateState() {
+        _createState.value = UiState.Idle
+    }
+
+    /**
+     * Limpia el estado de actualización
+     */
+    fun clearUpdateState() {
+        _updateState.value = UiState.Idle
+    }
+
+    /**
+     * Limpia el estado de eliminación
+     */
+    fun clearDeleteState() {
+        _deleteState.value = UiState.Idle
+    }
+
+    /**
      * Verifica si un producto está próximo a vencer (menos de 2 meses)
      * @param fechaVencimiento Fecha en formato ISO (yyyy-MM-dd)
      * @return true si quedan menos de 60 días
@@ -270,9 +286,28 @@ class ProductoViewModel : ViewModel() {
         if (fechaVencimiento == null) return false
 
         try {
-            // TODO: Implementar lógica de comparación de fechas
-            // Usar java.time.LocalDate o similar
-            return false
+            // Implementación simple de comparación de fechas
+            val parts = fechaVencimiento.split("-")
+            if (parts.size != 3) return false
+            
+            val year = parts[0].toIntOrNull() ?: return false
+            val month = parts[1].toIntOrNull() ?: return false
+            val day = parts[2].toIntOrNull() ?: return false
+            
+            // Obtener fecha actual
+            val currentDate = java.util.Calendar.getInstance()
+            val currentYear = currentDate.get(java.util.Calendar.YEAR)
+            val currentMonth = currentDate.get(java.util.Calendar.MONTH) + 1
+            val currentDay = currentDate.get(java.util.Calendar.DAY_OF_MONTH)
+            
+            // Calcular diferencia aproximada en días
+            val yearDiff = (year - currentYear) * 365
+            val monthDiff = (month - currentMonth) * 30
+            val dayDiff = day - currentDay
+            
+            val totalDays = yearDiff + monthDiff + dayDiff
+            
+            return totalDays in 1..60
         } catch (e: Exception) {
             return false
         }
