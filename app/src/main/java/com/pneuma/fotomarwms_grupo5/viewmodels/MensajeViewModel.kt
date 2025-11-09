@@ -1,63 +1,61 @@
 package com.pneuma.fotomarwms_grupo5.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase
+import com.pneuma.fotomarwms_grupo5.db.entities.MensajeLocal
 import com.pneuma.fotomarwms_grupo5.models.*
+import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
+import com.pneuma.fotomarwms_grupo5.network.EnviarMensajeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-
-import com.pneuma.fotomarwms_grupo5.db.AppDatabase
-import com.pneuma.fotomarwms_grupo5.db.entities.MensajeLocal
-
 /**
- * ViewModel para sistema de mensajería
- * Maneja mensajes entre Jefe/Supervisor y Operadores
- * También gestiona notificaciones automáticas del sistema
+ * ViewModel para gestión de mensajes
+ * USA MICROSERVICIOS REALES - SIN MOCKS
  */
 class MensajeViewModel(application: Application) : AndroidViewModel(application) {
-    // ========== ESTADOS DE MENSAJES ==========
 
-    // Obtener el DAO de mensajes pendientes
     private val mensajeDao = AppDatabase.getDatabase(application).mensajeDao()
+    private val apiService = RetrofitClient.mensajesService
+
+    // ========== ESTADOS ==========
+
     private val _mensajesState = MutableStateFlow<UiState<List<Mensaje>>>(UiState.Idle)
     val mensajesState: StateFlow<UiState<List<Mensaje>>> = _mensajesState.asStateFlow()
-
-    private val _selectedMensaje = MutableStateFlow<Mensaje?>(null)
-    val selectedMensaje: StateFlow<Mensaje?> = _selectedMensaje.asStateFlow()
-
-    private val _resumenState = MutableStateFlow<UiState<ResumenMensajes>>(UiState.Idle)
-    val resumenState: StateFlow<UiState<ResumenMensajes>> = _resumenState.asStateFlow()
-
-    private val _enviarMensajeState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
-    val enviarMensajeState: StateFlow<UiState<Boolean>> = _enviarMensajeState.asStateFlow()
 
     private val _mensajesEnviadosState = MutableStateFlow<UiState<List<Mensaje>>>(UiState.Idle)
     val mensajesEnviadosState: StateFlow<UiState<List<Mensaje>>> = _mensajesEnviadosState.asStateFlow()
 
+    private val _resumenState = MutableStateFlow<UiState<ResumenMensajes>>(UiState.Idle)
+    val resumenState: StateFlow<UiState<ResumenMensajes>> = _resumenState.asStateFlow()
+
+    private val _enviarState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
+    val enviarState: StateFlow<UiState<Boolean>> = _enviarState.asStateFlow()
+
     // ========== CONSULTA DE MENSAJES ==========
 
     /**
-     * Obtiene todos los mensajes del usuario actual
-     * Conecta con: GET /api/mensajes
+     * Obtiene todos los mensajes recibidos
+     * GET http://fotomarwms.ddns.net:8086/api/mensajes
      */
     fun getMensajes() {
         viewModelScope.launch {
             try {
                 _mensajesState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val mensajes = mensajeRepository.getMensajes()
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                val mockMensajes = generateMockMensajes()
-                _mensajesState.value = UiState.Success(mockMensajes)
+                val response = apiService.getMensajes()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _mensajesState.value = UiState.Success(response.body()!!)
+                } else {
+                    _mensajesState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _mensajesState.value = UiState.Error(
@@ -69,21 +67,22 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Obtiene solo mensajes no leídos
-     * Conecta con: GET /api/mensajes?soloNoLeidos=true
+     * GET http://fotomarwms.ddns.net:8086/api/mensajes?soloNoLeidos=true
      */
     fun getMensajesNoLeidos() {
         viewModelScope.launch {
             try {
                 _mensajesState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val mensajes = mensajeRepository.getMensajes(soloNoLeidos = true)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(400)
-
-                val mockMensajes = generateMockMensajes().filter { !it.leido }
-                _mensajesState.value = UiState.Success(mockMensajes)
+                val response = apiService.getMensajesNoLeidos()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _mensajesState.value = UiState.Success(response.body()!!)
+                } else {
+                    _mensajesState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _mensajesState.value = UiState.Error(
@@ -95,21 +94,22 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Obtiene solo mensajes importantes
-     * Conecta con: GET /api/mensajes?soloImportantes=true
+     * GET http://fotomarwms.ddns.net:8086/api/mensajes?soloImportantes=true
      */
     fun getMensajesImportantes() {
         viewModelScope.launch {
             try {
                 _mensajesState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val mensajes = mensajeRepository.getMensajes(soloImportantes = true)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(400)
-
-                val mockMensajes = generateMockMensajes().filter { it.importante }
-                _mensajesState.value = UiState.Success(mockMensajes)
+                val response = apiService.getMensajesImportantes()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _mensajesState.value = UiState.Success(response.body()!!)
+                } else {
+                    _mensajesState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _mensajesState.value = UiState.Error(
@@ -120,29 +120,23 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Obtiene el resumen de mensajes para el dashboard
-     * Conecta con: GET /api/mensajes/resumen
-     * Muestra cantidad de no leídos, importantes, etc.
+     * Obtiene resumen de mensajes
+     * GET http://fotomarwms.ddns.net:8086/api/mensajes/resumen
      */
-    fun getResumenMensajes() {
+    fun getResumen() {
         viewModelScope.launch {
             try {
                 _resumenState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val resumen = mensajeRepository.getResumen()
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(300)
-
-                val mensajes = generateMockMensajes()
-                val resumen = ResumenMensajes(
-                    totalNoLeidos = mensajes.count { !it.leido },
-                    totalImportantes = mensajes.count { it.importante && !it.leido },
-                    ultimoMensaje = mensajes.firstOrNull()
-                )
-
-                _resumenState.value = UiState.Success(resumen)
+                val response = apiService.getResumen()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _resumenState.value = UiState.Success(response.body()!!)
+                } else {
+                    _resumenState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _resumenState.value = UiState.Error(
@@ -153,38 +147,23 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Obtiene mensajes enviados por el usuario actual
-     * Conecta con: GET /api/mensajes/enviados
-     * Solo para JEFE/SUPERVISOR
+     * Obtiene mensajes enviados
+     * GET http://fotomarwms.ddns.net:8086/api/mensajes/enviados
      */
     fun getMensajesEnviados() {
         viewModelScope.launch {
             try {
                 _mensajesEnviadosState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val mensajes = mensajeRepository.getMensajesEnviados()
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                val mockEnviados = listOf(
-                    Mensaje(
-                        id = 10,
-                        titulo = "Reunión de equipo",
-                        contenido = "Reunión general el viernes a las 10:00",
-                        importante = true,
-                        leido = true,
-                        idRemitente = 2,
-                        remitente = "Yo",
-                        idDestinatario = null,
-                        destinatario = "Todos",
-                        fecha = "2025-10-07T14:00:00",
-                        tipo = TipoMensaje.BROADCAST
+                val response = apiService.getMensajesEnviados()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _mensajesEnviadosState.value = UiState.Success(response.body()!!)
+                } else {
+                    _mensajesEnviadosState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
                     )
-                )
-
-                _mensajesEnviadosState.value = UiState.Success(mockEnviados)
+                }
 
             } catch (e: Exception) {
                 _mensajesEnviadosState.value = UiState.Error(
@@ -194,291 +173,150 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // ========== ACCIONES SOBRE MENSAJES ==========
+    // ========== ACCIONES ==========
 
     /**
      * Marca un mensaje como leído
-     * Conecta con: PUT /api/mensajes/{id}/marcar-leido
-     * @param id ID del mensaje
+     * POST http://fotomarwms.ddns.net:8086/api/mensajes/{id}/leer
      */
-    fun marcarComoLeido(id: Int) {
+    fun marcarLeido(id: Int) {
         viewModelScope.launch {
             try {
-                // TODO: Conectar con backend
-                // mensajeRepository.marcarLeido(id)
-
-                // MOCK TEMPORAL - Actualizar estado local
-                kotlinx.coroutines.delay(200)
-
-                // Actualizar el mensaje en la lista
-                val mensajesActuales = (_mensajesState.value as? UiState.Success)?.data
-                mensajesActuales?.let { lista ->
-                    val nuevaLista = lista.map { mensaje ->
-                        if (mensaje.id == id) {
-                            mensaje.copy(leido = true)
-                        } else {
-                            mensaje
-                        }
-                    }
-                    _mensajesState.value = UiState.Success(nuevaLista)
+                val response = apiService.marcarLeido(id)
+                
+                if (response.isSuccessful) {
+                    // Recargar mensajes
+                    getMensajes()
                 }
 
-                // Actualizar resumen
-                getResumenMensajes()
-
             } catch (e: Exception) {
-                // Silenciar error, no es crítico
+                // Error silencioso
             }
         }
     }
 
     /**
-     * Cambia el estado de importancia de un mensaje
-     * Conecta con: PUT /api/mensajes/{id}/toggle-importante
-     * Solo para JEFE/SUPERVISOR
-     * @param id ID del mensaje
+     * Toggle importante
+     * POST http://fotomarwms.ddns.net:8086/api/mensajes/{id}/importante
      */
     fun toggleImportante(id: Int) {
         viewModelScope.launch {
             try {
-                // TODO: Conectar con backend
-                // mensajeRepository.toggleImportante(id)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(200)
-
-                // Actualizar el mensaje en la lista
-                val mensajesActuales = (_mensajesState.value as? UiState.Success)?.data
-                mensajesActuales?.let { lista ->
-                    val nuevaLista = lista.map { mensaje ->
-                        if (mensaje.id == id) {
-                            mensaje.copy(importante = !mensaje.importante)
-                        } else {
-                            mensaje
-                        }
-                    }
-                    _mensajesState.value = UiState.Success(nuevaLista)
+                val response = apiService.toggleImportante(id)
+                
+                if (response.isSuccessful) {
+                    // Recargar mensajes
+                    getMensajes()
                 }
 
             } catch (e: Exception) {
-                // Silenciar error
+                // Error silencioso
             }
         }
     }
 
-    // ========== ENVIAR MENSAJES ==========
-
     /**
-     * Envía un mensaje a un operador específico
-     * Conecta con: POST /api/mensajes
-     * Solo para JEFE/SUPERVISOR
-     * @param idDestinatario ID del usuario destinatario
-     * @param titulo Título del mensaje
-     * @param contenido Cuerpo del mensaje
-     * @param importante Si el mensaje es importante
+     * Envía un mensaje
+     * POST http://fotomarwms.ddns.net:8086/api/mensajes/enviar
+     * Patrón local-first
      */
-    fun enviarMensaje(
-        idDestinatario: Int,
-        titulo: String,
-        contenido: String,
-        importante: Boolean = false
-    ) {
-        viewModelScope.launch { // Ejecutar en segundo plano
+    fun enviarMensaje(destinatarioId: Int, asunto: String, contenido: String, importante: Boolean = false) {
+        viewModelScope.launch {
             try {
-                _enviarMensajeState.value = UiState.Loading
+                _enviarState.value = UiState.Loading
 
-                // 1. Crear el objeto MensajeLocal
-                val mensajePendiente = MensajeLocal(
-                    idDestinatario = idDestinatario,
-                    titulo = titulo,
+                // 1. Guardar localmente
+                val mensajeLocal = MensajeLocal(
+                    destinatarioId = destinatarioId,
+                    asunto = asunto,
                     contenido = contenido,
-                    importante = importante
-                    // idLocal y timestamp se generan automáticamente
+                    importante = importante,
+                    timestamp = System.currentTimeMillis()
                 )
+                val localId = mensajeDao.insertarMensajePendiente(mensajeLocal)
 
-                // 2. Guardar en SQLite ANTES de intentar enviar
-                val idGenerado = mensajeDao.insertarMensajePendiente(mensajePendiente)
-                println("✅ Mensaje individual ${idGenerado} guardado localmente.") // Mensaje de prueba
-
-                // 3. (FUTURO - Lógica Backend)
-                // Aquí iría la llamada a tu API para enviar el 'mensajePendiente'
-                // val exitoBackend = miApi.enviarMensajeAlBackend(mensajePendiente)
-
-                // 4. (FUTURO - Borrado si Backend OK)
-                // if (exitoBackend) {
-                //     mensajeDao.borrarMensajePendientePorId(idGenerado)
-                //     println("✅ Mensaje ${idGenerado} confirmado por backend y borrado localmente.")
-                //     _enviarMensajeState.value = UiState.Success(true)
-                // } else {
-                //     _enviarMensajeState.value = UiState.Error("Guardado localmente, pero falló el envío al servidor.")
-                //     println("⚠️ Falló envío de mensaje ${idGenerado} al backend.")
-                // }
-
-                // --- Simulación TEMPORAL: Éxito con guardado local ---
-                _enviarMensajeState.value = UiState.Success(true)
-                // --- Fin Simulación ---
+                try {
+                    // 2. Enviar al backend
+                    val request = EnviarMensajeRequest(destinatarioId, asunto, contenido, importante)
+                    val response = apiService.enviarMensaje(request)
+                    
+                    if (response.isSuccessful && response.code() == 200) {
+                        // 3. Eliminar local si éxito
+                        mensajeDao.deleteById(localId)
+                        _enviarState.value = UiState.Success(true)
+                    } else {
+                        _enviarState.value = UiState.Error(
+                            "Guardado localmente. Error backend: ${response.code()}"
+                        )
+                    }
+                } catch (e: Exception) {
+                    _enviarState.value = UiState.Error(
+                        "Guardado localmente. Se sincronizará después."
+                    )
+                }
 
             } catch (e: Exception) {
-                _enviarMensajeState.value = UiState.Error(
-                    message = "Error CRÍTICO al guardar mensaje localmente: ${e.message}"
+                _enviarState.value = UiState.Error(
+                    message = "Error al enviar mensaje: ${e.message}"
                 )
-                println("❌ Error CRÍTICO al guardar mensaje localmente: ${e.message}")
             }
         }
     }
+
     /**
-     * Envía un mensaje broadcast (para todos los operadores)
-     * Conecta con: POST /api/mensajes (con idDestinatario = null)
-     * Solo para JEFE/SUPERVISOR
-     * @param titulo Título del mensaje
-     * @param contenido Cuerpo del mensaje
-     * @param importante Si el mensaje es importante
+     * Envía mensaje broadcast
+     * POST http://fotomarwms.ddns.net:8086/api/mensajes/broadcast
      */
-    fun enviarMensajeBroadcast(
-        titulo: String,
-        contenido: String,
-        importante: Boolean = false
-    ) {
-        viewModelScope.launch { // Ejecutar en segundo plano
+    fun enviarBroadcast(asunto: String, contenido: String, importante: Boolean = false) {
+        viewModelScope.launch {
             try {
-                _enviarMensajeState.value = UiState.Loading
+                _enviarState.value = UiState.Loading
 
-                // 1. Crear el objeto MensajeLocal (idDestinatario es null para broadcast)
-                val mensajePendiente = MensajeLocal(
-                    idDestinatario = null, // null indica broadcast
-                    titulo = titulo,
+                // 1. Guardar localmente
+                val mensajeLocal = MensajeLocal(
+                    destinatarioId = -1, // Broadcast
+                    asunto = asunto,
                     contenido = contenido,
-                    importante = importante
+                    importante = importante,
+                    timestamp = System.currentTimeMillis()
                 )
+                val localId = mensajeDao.insertarMensajePendiente(mensajeLocal)
 
-                // 2. Guardar en SQLite ANTES de intentar enviar
-                val idGenerado = mensajeDao.insertarMensajePendiente(mensajePendiente)
-                println("✅ Mensaje broadcast ${idGenerado} guardado localmente.") // Mensaje de prueba
-
-                // 3. (FUTURO - Lógica Backend)
-                // Aquí iría la llamada a tu API para enviar el 'mensajePendiente' (tipo broadcast)
-                // val exitoBackend = miApi.enviarMensajeAlBackend(mensajePendiente)
-
-                // 4. (FUTURO - Borrado si Backend OK)
-                // if (exitoBackend) {
-                //     mensajeDao.borrarMensajePendientePorId(idGenerado)
-                //     println("✅ Mensaje broadcast ${idGenerado} confirmado y borrado localmente.")
-                //     _enviarMensajeState.value = UiState.Success(true)
-                // } else {
-                //     _enviarMensajeState.value = UiState.Error("Guardado localmente, pero falló el envío broadcast.")
-                //     println("⚠️ Falló envío de mensaje broadcast ${idGenerado} al backend.")
-                // }
-
-                // --- Simulación TEMPORAL: Éxito con guardado local ---
-                _enviarMensajeState.value = UiState.Success(true)
-                // --- Fin Simulación ---
+                try {
+                    // 2. Enviar al backend
+                    val request = EnviarMensajeRequest(-1, asunto, contenido, importante)
+                    val response = apiService.enviarBroadcast(request)
+                    
+                    if (response.isSuccessful && response.code() == 200) {
+                        // 3. Eliminar local si éxito
+                        mensajeDao.deleteById(localId)
+                        _enviarState.value = UiState.Success(true)
+                    } else {
+                        _enviarState.value = UiState.Error(
+                            "Guardado localmente. Error backend: ${response.code()}"
+                        )
+                    }
+                } catch (e: Exception) {
+                    _enviarState.value = UiState.Error(
+                        "Guardado localmente. Se sincronizará después."
+                    )
+                }
 
             } catch (e: Exception) {
-                _enviarMensajeState.value = UiState.Error(
-                    message = "Error CRÍTICO al guardar mensaje broadcast localmente: ${e.message}"
+                _enviarState.value = UiState.Error(
+                    message = "Error al enviar broadcast: ${e.message}"
                 )
-                println("❌ Error CRÍTICO al guardar mensaje broadcast localmente: ${e.message}")
             }
         }
     }
 
     // ========== UTILIDADES ==========
 
-    /**
-     * Selecciona un mensaje para ver su detalle
-     */
-    fun selectMensaje(mensaje: Mensaje) {
-        _selectedMensaje.value = mensaje
-
-        // Marcar como leído automáticamente al abrir
-        if (!mensaje.leido) {
-            marcarComoLeido(mensaje.id)
-        }
+    fun clearMensajes() {
+        _mensajesState.value = UiState.Idle
     }
 
-    /**
-     * Limpia el mensaje seleccionado
-     */
-    fun clearSelectedMensaje() {
-        _selectedMensaje.value = null
-    }
-
-    /**
-     * Limpia el estado de envío
-     */
     fun clearEnviarState() {
-        _enviarMensajeState.value = UiState.Idle
-    }
-
-    // ========== MOCK DATA HELPER ==========
-
-    private fun generateMockMensajes(): List<Mensaje> {
-        return listOf(
-            Mensaje(
-                id = 1,
-                titulo = "Verificar inventario de cámaras",
-                contenido = "Recordatorio: Verificar inventario de cámaras Canon en bodega A-2. Hacer 2 horas",
-                importante = false,
-                leido = false,
-                idRemitente = 2,
-                remitente = "Jefe de Bodega",
-                idDestinatario = 4,
-                destinatario = "Operador",
-                fecha = "2025-10-08T11:30:00",
-                tipo = TipoMensaje.NORMAL
-            ),
-            Mensaje(
-                id = 2,
-                titulo = "Stock bajo",
-                contenido = "3 productos con stock bajo: CA30001, FL30001, AP30002",
-                importante = true,
-                leido = false,
-                idRemitente = null,
-                remitente = "Sistema",
-                idDestinatario = 2,
-                destinatario = "Jefe de Bodega",
-                fecha = "2025-10-08T09:00:00",
-                tipo = TipoMensaje.ALERTA
-            ),
-            Mensaje(
-                id = 3,
-                titulo = "Conteo físico - Sección A",
-                contenido = "Realizar conteo completo de productos en estantes A-1 a A-5. Asignado por: Fecha límite",
-                importante = false,
-                leido = true,
-                idRemitente = 2,
-                remitente = "Jefe de Bodega",
-                idDestinatario = 4,
-                destinatario = "Operador",
-                fecha = "2025-10-07T15:45:00",
-                tipo = TipoMensaje.NORMAL
-            ),
-            Mensaje(
-                id = 4,
-                titulo = "Excelente trabajo en el conteo de ayer",
-                contenido = "Excelente trabajo en el conteo de ayer. Continúa con sección B mañana.",
-                importante = false,
-                leido = true,
-                idRemitente = 2,
-                remitente = "Jefe de Bodega",
-                idDestinatario = 4,
-                destinatario = "Operador",
-                fecha = "2025-10-07T07:15:00",
-                tipo = TipoMensaje.NORMAL
-            ),
-            Mensaje(
-                id = 5,
-                titulo = "Nuevo solicitud de egreso pendiente",
-                contenido = "Nueva solicitud de egreso pendiente de procesamiento: LENS001",
-                importante = true,
-                leido = false,
-                idRemitente = null,
-                remitente = "Sistema",
-                idDestinatario = 2,
-                destinatario = "Jefe de Bodega",
-                fecha = "2025-10-06T06:45:00",
-                tipo = TipoMensaje.NOTIFICACION
-            )
-        )
+        _enviarState.value = UiState.Idle
     }
 }

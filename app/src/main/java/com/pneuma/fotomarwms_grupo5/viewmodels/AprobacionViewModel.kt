@@ -1,11 +1,14 @@
 package com.pneuma.fotomarwms_grupo5.viewmodels
 
-import android.app.Application // <-- IMPORTA
-import androidx.lifecycle.AndroidViewModel // <-- CAMBIA A ESTE
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.pneuma.fotomarwms_grupo5.db.AppDatabase // <-- IMPORTA
-import com.pneuma.fotomarwms_grupo5.db.entities.SolicitudMovimientoLocal // <-- IMPORTA
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase
+import com.pneuma.fotomarwms_grupo5.db.entities.SolicitudMovimientoLocal
 import com.pneuma.fotomarwms_grupo5.models.*
+import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
+import com.pneuma.fotomarwms_grupo5.network.AprobarRequest
+import com.pneuma.fotomarwms_grupo5.network.RechazarRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,18 +18,14 @@ import kotlinx.coroutines.launch
  * ViewModel para gestión de aprobaciones
  * Maneja solicitudes de movimientos (INGRESO/EGRESO/REUBICACION)
  * y su flujo de aprobación/rechazo
+ * USA MICROSERVICIOS REALES - SIN MOCKS
  */
 class AprobacionViewModel(application: Application) : AndroidViewModel(application) {
-    // ========== ESTADOS DE APROBACIONES ==========
 
-
-    // Obtenemos el DAO directamente al crear el ViewModel
     private val solicitudMovimientoDao = AppDatabase.getDatabase(application).solicitudMovimientoDao()
+    private val apiService = RetrofitClient.aprobacionesService
 
-    private val _createSolicitudState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
-    val createSolicitudState: StateFlow<UiState<Boolean>> = _createSolicitudState.asStateFlow()
-
-
+    // ========== ESTADOS ==========
 
     private val _aprobacionesState = MutableStateFlow<UiState<List<Aprobacion>>>(UiState.Idle)
     val aprobacionesState: StateFlow<UiState<List<Aprobacion>>> = _aprobacionesState.asStateFlow()
@@ -37,9 +36,8 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
     private val _aprobacionDetailState = MutableStateFlow<UiState<Aprobacion>>(UiState.Idle)
     val aprobacionDetailState: StateFlow<UiState<Aprobacion>> = _aprobacionDetailState.asStateFlow()
 
-    //-------ESTA ERA LA ANTIGUA----------
-    //private val _createSolicitudState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
-    //val createSolicitudState: StateFlow<UiState<Boolean>> = _createSolicitudState.asStateFlow()
+    private val _createSolicitudState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
+    val createSolicitudState: StateFlow<UiState<Boolean>> = _createSolicitudState.asStateFlow()
 
     private val _respuestaState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val respuestaState: StateFlow<UiState<Boolean>> = _respuestaState.asStateFlow()
@@ -54,22 +52,22 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Obtiene todas las solicitudes de aprobación
-     * Conecta con: GET /api/aprobaciones
-     * Solo para JEFE/SUPERVISOR
+     * GET http://fotomarwms.ddns.net:8085/api/aprobaciones
      */
     fun getAllAprobaciones() {
         viewModelScope.launch {
             try {
                 _aprobacionesState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val aprobaciones = aprobacionRepository.getAll()
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(600)
-
-                val mockAprobaciones = generateMockAprobaciones()
-                _aprobacionesState.value = UiState.Success(mockAprobaciones)
+                val response = apiService.getAllAprobaciones()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _aprobacionesState.value = UiState.Success(response.body()!!)
+                } else {
+                    _aprobacionesState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _aprobacionesState.value = UiState.Error(
@@ -81,8 +79,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Obtiene aprobaciones filtradas por estado
-     * Conecta con: GET /api/aprobaciones?estado={PENDIENTE|APROBADO|RECHAZADO}
-     * @param estado Estado para filtrar
+     * GET http://fotomarwms.ddns.net:8085/api/aprobaciones?estado={PENDIENTE|APROBADO|RECHAZADO}
      */
     fun getAprobacionesByEstado(estado: EstadoAprobacion) {
         viewModelScope.launch {
@@ -90,91 +87,71 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                 _aprobacionesState.value = UiState.Loading
                 _estadoFiltro.value = estado
 
-                // TODO: Conectar con backend
-                // val aprobaciones = aprobacionRepository.getByEstado(estado.name)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(400)
-
-                val mockAprobaciones = generateMockAprobaciones().filter {
-                    it.estado == estado
+                val response = apiService.getAprobacionesByEstado(estado.name)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _aprobacionesState.value = UiState.Success(response.body()!!)
+                } else {
+                    _aprobacionesState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
                 }
-
-                _aprobacionesState.value = UiState.Success(mockAprobaciones)
 
             } catch (e: Exception) {
                 _aprobacionesState.value = UiState.Error(
-                    message = "Error al obtener aprobaciones: ${e.message}"
+                    message = "Error al filtrar aprobaciones: ${e.message}"
                 )
             }
         }
     }
 
     /**
-     * Obtiene una aprobación específica por ID
-     * Conecta con: GET /api/aprobaciones/{id}
-     * @param id ID de la aprobación
+     * Obtiene el detalle de una aprobación
+     * GET http://fotomarwms.ddns.net:8085/api/aprobaciones/{id}
      */
-    fun getAprobacionById(id: Int) {
+    fun getAprobacionDetail(id: Int) {
         viewModelScope.launch {
             try {
                 _aprobacionDetailState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val aprobacion = aprobacionRepository.getById(id)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(300)
-
-                val mockAprobacion = Aprobacion(
-                    id = id,
-                    tipoMovimiento = TipoMovimiento.INGRESO,
-                    sku = "CA30001",
-                    cantidad = 10,
-                    motivo = "Reposición de stock",
-                    estado = EstadoAprobacion.PENDIENTE,
-                    solicitante = "Juan Pérez",
-                    idSolicitante = 5,
-                    aprobador = null,
-                    idAprobador = null,
-                    observaciones = null,
-                    fechaSolicitud = "2025-10-08T11:30:00",
-                    fechaRespuesta = null,
-                    idUbicacionOrigen = null,
-                    idUbicacionDestino = null,
-                    ubicacionOrigen = null,
-                    ubicacionDestino = null
-                )
-
-                _selectedAprobacion.value = mockAprobacion
-                _aprobacionDetailState.value = UiState.Success(mockAprobacion)
+                val response = apiService.getAprobacionById(id)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val aprobacion = response.body()!!
+                    _selectedAprobacion.value = aprobacion
+                    _aprobacionDetailState.value = UiState.Success(aprobacion)
+                } else {
+                    _aprobacionDetailState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _aprobacionDetailState.value = UiState.Error(
-                    message = "Error al obtener aprobación: ${e.message}"
+                    message = "Error al obtener detalle: ${e.message}"
                 )
             }
         }
     }
 
     /**
-     * Obtiene las solicitudes realizadas por el usuario actual
-     * Conecta con: GET /api/aprobaciones/mis-solicitudes
-     * Para que OPERADORES vean el estado de sus solicitudes
+     * Obtiene las solicitudes del usuario actual
+     * GET http://fotomarwms.ddns.net:8085/api/aprobaciones/mis-solicitudes
      */
     fun getMisSolicitudes() {
         viewModelScope.launch {
             try {
                 _misSolicitudesState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val solicitudes = aprobacionRepository.getMisSolicitudes()
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                val mockSolicitudes = generateMockAprobaciones().take(3)
-                _misSolicitudesState.value = UiState.Success(mockSolicitudes)
+                val response = apiService.getMisSolicitudes()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _misSolicitudesState.value = UiState.Success(response.body()!!)
+                } else {
+                    _misSolicitudesState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _misSolicitudesState.value = UiState.Error(
@@ -184,149 +161,172 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    // ========== CREAR SOLICITUDES ==========
+    // ========== CREACIÓN DE SOLICITUDES ==========
 
     /**
-     * Crea una nueva solicitud de INGRESO
-     * Conecta con: POST /api/aprobaciones
-     * @param sku SKU del producto
-     * @param cantidad Cantidad a ingresar
-     * @param motivo Razón del ingreso
+     * Crea solicitud de INGRESO
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/solicitar-ingreso
+     * Patrón local-first: guarda local → envía backend → elimina si OK
      */
-    // --- INGRESO ---
-    fun createSolicitudIngreso(sku: String, cantidad: Int, motivo: String) {
-        viewModelScope.launch { // Ejecutar en segundo plano
+    fun solicitarIngreso(request: SolicitudIngresoRequest) {
+        viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
+
+                // 1. Guardar localmente
                 val solicitudLocal = SolicitudMovimientoLocal(
-                    tipoMovimiento = TipoMovimiento.INGRESO.name,
-                    sku = sku,
-                    cantidad = cantidad,
-                    motivo = motivo,
-                    idUbicacionOrigen = null,
-                    idUbicacionDestino = null
-                    // idLocal y timestamp usan sus valores por defecto
+                    tipoMovimiento = "INGRESO",
+                    sku = request.sku,
+                    cantidad = request.cantidad,
+                    ubicacionDestino = request.ubicacionDestino,
+                    motivo = request.motivo,
+                    timestamp = System.currentTimeMillis()
                 )
-                // 1. GUARDAR LOCALMENTE PRIMERO
-                val idGenerado = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
-                println("Solicitud ${idGenerado} guardada localmente.") // Mensaje de prueba
+                val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
 
-                // 2. (FUTURO) INTENTAR ENVIAR AL BACKEND
-                // val exitoBackend = enviarAlBackend(solicitudLocal) // Función imaginaria
+                try {
+                    // 2. Enviar al backend
+                    val response = apiService.solicitarIngreso(request)
+                    
+                    if (response.isSuccessful && response.code() == 200) {
+                        // 3. Eliminar local si éxito
+                        solicitudMovimientoDao.deleteById(localId)
+                        _createSolicitudState.value = UiState.Success(true)
+                    } else {
+                        _createSolicitudState.value = UiState.Error(
+                            "Guardado localmente. Error backend: ${response.code()}"
+                        )
+                    }
+                } catch (e: Exception) {
+                    _createSolicitudState.value = UiState.Error(
+                        "Guardado localmente. Se sincronizará después."
+                    )
+                }
 
-                // 3. (FUTURO) SI BACKEND RESPONDE OK (200), BORRAR LOCALMENTE
-                // if (exitoBackend) {
-                //     borrarSolicitudLocalmente(idGenerado)
-                // } else {
-                //     // Marcar como fallido o dejar pendiente para reintentar
-                // }
-
-                _createSolicitudState.value = UiState.Success(true) // Éxito (al menos local)
             } catch (e: Exception) {
-                _createSolicitudState.value = UiState.Error("Error al guardar localmente: ${e.message}")
+                _createSolicitudState.value = UiState.Error(
+                    message = "Error al crear solicitud: ${e.message}"
+                )
             }
         }
     }
 
     /**
-     * Crea una nueva solicitud de EGRESO
-     * Conecta con: POST /api/aprobaciones
-     * @param sku SKU del producto
-     * @param cantidad Cantidad a egresar
-     * @param motivo Razón del egreso
+     * Crea solicitud de EGRESO
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/solicitar-egreso
      */
-    // --- EGRESO (similar) ---
-    fun createSolicitudEgreso(sku: String, cantidad: Int, motivo: String) {
+    fun solicitarEgreso(request: SolicitudEgresoRequest) {
         viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
-                // --- REEMPLAZA EL COMENTARIO CON ESTO: ---
-                val solicitudLocal = SolicitudMovimientoLocal(
-                    tipoMovimiento = TipoMovimiento.EGRESO.name, // <-- Indica que es Egreso
-                    sku = sku,                  // <-- Usa el sku que recibe la función
-                    cantidad = cantidad,        // <-- Usa la cantidad que recibe la función
-                    motivo = motivo,             // <-- Usa el motivo que recibe la función
-                    idUbicacionOrigen = null, // <-- Para Egreso, no hay origen específico (se asume almacén general) o destino. Ponemos null.
-                    idUbicacionDestino = null  // <-- Para Egreso, no hay destino específico. Ponemos null.
-                )
-                // --- FIN DEL REEMPLAZO ---
 
-                val idGenerado = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
-                println("✅ Solicitud EGRESO ${idGenerado} guardada localmente.")
-                // (FUTURO: Lógica Backend + Borrado si OK)
-                _createSolicitudState.value = UiState.Success(true)
-            } catch (e: Exception) { /* ... manejo error ... */ }
+                val solicitudLocal = SolicitudMovimientoLocal(
+                    tipoMovimiento = "EGRESO",
+                    sku = request.sku,
+                    cantidad = request.cantidad,
+                    ubicacionOrigen = request.ubicacionOrigen,
+                    motivo = request.motivo,
+                    timestamp = System.currentTimeMillis()
+                )
+                val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
+
+                try {
+                    val response = apiService.solicitarEgreso(request)
+                    
+                    if (response.isSuccessful && response.code() == 200) {
+                        solicitudMovimientoDao.deleteById(localId)
+                        _createSolicitudState.value = UiState.Success(true)
+                    } else {
+                        _createSolicitudState.value = UiState.Error(
+                            "Guardado localmente. Error backend: ${response.code()}"
+                        )
+                    }
+                } catch (e: Exception) {
+                    _createSolicitudState.value = UiState.Error(
+                        "Guardado localmente. Se sincronizará después."
+                    )
+                }
+
+            } catch (e: Exception) {
+                _createSolicitudState.value = UiState.Error(
+                    message = "Error al crear solicitud: ${e.message}"
+                )
+            }
         }
     }
 
     /**
-     * Crea una nueva solicitud de REUBICACION
-     * Conecta con: POST /api/aprobaciones
-     * @param sku SKU del producto
-     * @param cantidad Cantidad a reubicar
-     * @param motivo Razón de la reubicación
-     * @param idUbicacionOrigen ID de ubicación origen
-     * @param idUbicacionDestino ID de ubicación destino
+     * Crea solicitud de REUBICACION
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/solicitar-reubicacion
      */
-    // --- REUBICACION (similar) ---
-    fun createSolicitudReubicacion(sku: String, cantidad: Int, motivo: String, idUbicacionOrigen: Int, idUbicacionDestino: Int) {
+    fun solicitarReubicacion(request: SolicitudReubicacionRequest) {
         viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
-                val solicitudLocal = SolicitudMovimientoLocal(
-                    tipoMovimiento = TipoMovimiento.REUBICACION.name, // <-- Tipo REUBICACION
-                    sku = sku,                     // <-- Usa el sku que recibe la función
-                    cantidad = cantidad,           // <-- Usa la cantidad que recibe la función
-                    motivo = motivo,               // <-- Usa el motivo que recibe la función
-                    idUbicacionOrigen = idUbicacionOrigen, // <-- Usa el origen que recibe la función
-                    idUbicacionDestino = idUbicacionDestino // <-- Usa el destino que recibe la función
-                )
-                // --- Fin de la creación del objeto ---
 
-                // 1. GUARDA EN SQLITE
-                val idGenerado = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
-                println("✅ Solicitud REUBICACION ${idGenerado} guardada localmente.") // Mensaje de prueba
-                // 2. (FUTURO) LLAMADA AL BACKEND...
-                // 3. (FUTURO) BORRAR SI BACKEND OK...
-                _createSolicitudState.value = UiState.Success(true)
-            } catch (e: Exception) { /* ... manejo error ... */ }
+                val solicitudLocal = SolicitudMovimientoLocal(
+                    tipoMovimiento = "REUBICACION",
+                    sku = request.sku,
+                    cantidad = request.cantidad,
+                    ubicacionOrigen = request.ubicacionOrigen,
+                    ubicacionDestino = request.ubicacionDestino,
+                    motivo = request.motivo,
+                    timestamp = System.currentTimeMillis()
+                )
+                val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
+
+                try {
+                    val response = apiService.solicitarReubicacion(request)
+                    
+                    if (response.isSuccessful && response.code() == 200) {
+                        solicitudMovimientoDao.deleteById(localId)
+                        _createSolicitudState.value = UiState.Success(true)
+                    } else {
+                        _createSolicitudState.value = UiState.Error(
+                            "Guardado localmente. Error backend: ${response.code()}"
+                        )
+                    }
+                } catch (e: Exception) {
+                    _createSolicitudState.value = UiState.Error(
+                        "Guardado localmente. Se sincronizará después."
+                    )
+                }
+
+            } catch (e: Exception) {
+                _createSolicitudState.value = UiState.Error(
+                    message = "Error al crear solicitud: ${e.message}"
+                )
+            }
         }
     }
 
-    // ========== APROBAR/RECHAZAR SOLICITUDES ==========
+    // ========== APROBACIÓN/RECHAZO ==========
 
     /**
      * Aprueba una solicitud
-     * Conecta con: PUT /api/aprobaciones/{id}/aprobar
-     * Solo para JEFE/SUPERVISOR
-     * @param id ID de la solicitud
-     * @param observaciones Comentarios opcionales
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/{id}/aprobar
      */
-    fun aprobarSolicitud(id: Int, observaciones: String? = null) {
+    fun aprobarSolicitud(id: Int, comentario: String? = null) {
         viewModelScope.launch {
             try {
                 _respuestaState.value = UiState.Loading
 
-                val request = RespuestaAprobacionRequest(observaciones)
-
-                // TODO: Conectar con backend
-                // aprobacionRepository.aprobar(id, request)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                _respuestaState.value = UiState.Success(true)
-
-                // Recargar lista de aprobaciones
-                if (_estadoFiltro.value != null) {
-                    getAprobacionesByEstado(_estadoFiltro.value!!)
-                } else {
+                val request = AprobarRequest(comentario = comentario)
+                val response = apiService.aprobarSolicitud(id, request)
+                
+                if (response.isSuccessful && response.code() == 200) {
+                    _respuestaState.value = UiState.Success(true)
+                    // Recargar lista
                     getAllAprobaciones()
+                } else {
+                    _respuestaState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
                 }
 
             } catch (e: Exception) {
                 _respuestaState.value = UiState.Error(
-                    message = "Error al aprobar solicitud: ${e.message}"
+                    message = "Error al aprobar: ${e.message}"
                 )
             }
         }
@@ -334,36 +334,29 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Rechaza una solicitud
-     * Conecta con: PUT /api/aprobaciones/{id}/rechazar
-     * Solo para JEFE/SUPERVISOR
-     * @param id ID de la solicitud
-     * @param observaciones Razón del rechazo (obligatorio)
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/{id}/rechazar
      */
-    fun rechazarSolicitud(id: Int, observaciones: String) {
+    fun rechazarSolicitud(id: Int, motivo: String) {
         viewModelScope.launch {
             try {
                 _respuestaState.value = UiState.Loading
 
-                val request = RespuestaAprobacionRequest(observaciones)
-
-                // TODO: Conectar con backend
-                // aprobacionRepository.rechazar(id, request)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                _respuestaState.value = UiState.Success(true)
-
-                // Recargar lista de aprobaciones
-                if (_estadoFiltro.value != null) {
-                    getAprobacionesByEstado(_estadoFiltro.value!!)
-                } else {
+                val request = RechazarRequest(motivo = motivo)
+                val response = apiService.rechazarSolicitud(id, request)
+                
+                if (response.isSuccessful && response.code() == 200) {
+                    _respuestaState.value = UiState.Success(true)
+                    // Recargar lista
                     getAllAprobaciones()
+                } else {
+                    _respuestaState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
                 }
 
             } catch (e: Exception) {
                 _respuestaState.value = UiState.Error(
-                    message = "Error al rechazar solicitud: ${e.message}"
+                    message = "Error al rechazar: ${e.message}"
                 )
             }
         }
@@ -371,78 +364,21 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     // ========== UTILIDADES ==========
 
-    /**
-     * Limpia el estado de creación de solicitud
-     */
-    fun clearCreateState() {
-        _createSolicitudState.value = UiState.Idle
-    }
-
-    /**
-     * Limpia el estado de respuesta
-     */
-    fun clearRespuestaState() {
-        _respuestaState.value = UiState.Idle
-    }
-
-    /**
-     * Limpia el filtro de estado
-     */
-    fun clearEstadoFilter() {
+    fun clearAprobaciones() {
+        _aprobacionesState.value = UiState.Idle
         _estadoFiltro.value = null
-        getAllAprobaciones()
     }
 
-    /**
-     * Limpia la aprobación seleccionada
-     */
     fun clearSelectedAprobacion() {
         _selectedAprobacion.value = null
         _aprobacionDetailState.value = UiState.Idle
     }
 
-    // ========== MOCK DATA HELPER ==========
+    fun clearCreateState() {
+        _createSolicitudState.value = UiState.Idle
+    }
 
-    private fun generateMockAprobaciones(): List<Aprobacion> {
-        return listOf(
-            Aprobacion(
-                id = 1,
-                tipoMovimiento = TipoMovimiento.INGRESO,
-                sku = "CAM001",
-                cantidad = 10,
-                motivo = "Reposición de stock",
-                estado = EstadoAprobacion.PENDIENTE,
-                solicitante = "Juan Pérez",
-                idSolicitante = 5,
-                aprobador = null,
-                idAprobador = null,
-                observaciones = null,
-                fechaSolicitud = "2025-10-08T11:30:00",
-                fechaRespuesta = null,
-                idUbicacionOrigen = null,
-                idUbicacionDestino = null,
-                ubicacionOrigen = null,
-                ubicacionDestino = null
-            ),
-            Aprobacion(
-                id = 2,
-                tipoMovimiento = TipoMovimiento.EGRESO,
-                sku = "LENS001",
-                cantidad = 3,
-                motivo = "Venta cliente corporativo",
-                estado = EstadoAprobacion.PENDIENTE,
-                solicitante = "María García",
-                idSolicitante = 6,
-                aprobador = null,
-                idAprobador = null,
-                observaciones = null,
-                fechaSolicitud = "2025-10-08T07:15:00",
-                fechaRespuesta = null,
-                idUbicacionOrigen = null,
-                idUbicacionDestino = null,
-                ubicacionOrigen = null,
-                ubicacionDestino = null
-            )
-        )
+    fun clearRespuestaState() {
+        _respuestaState.value = UiState.Idle
     }
 }

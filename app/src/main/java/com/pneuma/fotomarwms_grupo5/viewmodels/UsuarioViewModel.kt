@@ -1,36 +1,29 @@
 package com.pneuma.fotomarwms_grupo5.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.pneuma.fotomarwms_grupo5.db.AppDatabase
+import com.pneuma.fotomarwms_grupo5.db.entities.UsuarioLocal
 import com.pneuma.fotomarwms_grupo5.models.*
+import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
+import com.pneuma.fotomarwms_grupo5.network.CrearUsuarioRequest
+import com.pneuma.fotomarwms_grupo5.network.ActualizarUsuarioRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import com.pneuma.fotomarwms_grupo5.db.AppDatabase // <-- IMPORTA BD
-import com.pneuma.fotomarwms_grupo5.db.entities.UsuarioLocal // <-- IMPORTA ENTIDAD LOCAL
-
-import com.pneuma.fotomarwms_grupo5.models.*
-
-
-
 /**
  * ViewModel para gestión de usuarios
- * Solo para rol ADMIN
- * Maneja creación, actualización, eliminación y activación/desactivación de usuarios
+ * USA MICROSERVICIOS REALES - SIN MOCKS
  */
-// CAMBIAMOS A AndroidViewModel para obtener 'application'
 class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
 
-
-    // ========== ESTADOS DE USUARIOS ==========
-
-    // Obtenemos el nuevo DAO directamente desde AppDatabase
     private val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
+    private val apiService = RetrofitClient.usuariosService
 
+    // ========== ESTADOS ==========
 
     private val _usuariosState = MutableStateFlow<UiState<List<Usuario>>>(UiState.Idle)
     val usuariosState: StateFlow<UiState<List<Usuario>>> = _usuariosState.asStateFlow()
@@ -41,41 +34,35 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     private val _usuarioDetailState = MutableStateFlow<UiState<Usuario>>(UiState.Idle)
     val usuarioDetailState: StateFlow<UiState<Usuario>> = _usuarioDetailState.asStateFlow()
 
-    // --- ESTADO PARA CREAR USUARIO ---
     private val _createUsuarioState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val createUsuarioState: StateFlow<UiState<Boolean>> = _createUsuarioState.asStateFlow()
 
-    // --- ESTADO PARA ACTUALIZAR USUARIO---
     private val _updateUsuarioState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val updateUsuarioState: StateFlow<UiState<Boolean>> = _updateUsuarioState.asStateFlow()
 
-    // --- ESTADO PARA BORRAR USUARIO ---
     private val _deleteUsuarioState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val deleteUsuarioState: StateFlow<UiState<Boolean>> = _deleteUsuarioState.asStateFlow()
-
-    private val _rolFiltro = MutableStateFlow<Rol?>(null)
-    val rolFiltro: StateFlow<Rol?> = _rolFiltro.asStateFlow()
 
     // ========== CONSULTA DE USUARIOS ==========
 
     /**
-     * Obtiene todos los usuarios del sistema
-     * Conecta con: GET /api/usuarios
-     * Solo para ADMIN
+     * Obtiene todos los usuarios
+     * GET http://fotomarwms.ddns.net:8082/api/usuarios
      */
     fun getAllUsuarios() {
         viewModelScope.launch {
             try {
                 _usuariosState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val usuarios = usuarioRepository.getAll()
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(600)
-
-                val mockUsuarios = generateMockUsuarios()
-                _usuariosState.value = UiState.Success(mockUsuarios)
+                val response = apiService.getAllUsuarios()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    _usuariosState.value = UiState.Success(response.body()!!)
+                } else {
+                    _usuariosState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _usuariosState.value = UiState.Error(
@@ -86,32 +73,25 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Obtiene un usuario específico por ID
-     * Conecta con: GET /api/usuarios/{id}
-     * Solo para ADMIN
-     * @param id ID del usuario
+     * Obtiene un usuario por ID
+     * GET http://fotomarwms.ddns.net:8082/api/usuarios/{id}
      */
-    fun getUsuarioById(id: Int) {
+    fun getUsuarioDetail(id: Int) {
         viewModelScope.launch {
             try {
                 _usuarioDetailState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // val usuario = usuarioRepository.getById(id)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(400)
-
-                val mockUsuario = Usuario(
-                    id = id,
-                    nombre = "Usuario Ejemplo $id",
-                    email = "usuario$id@fotomar.cl",
-                    rol = Rol.OPERADOR,
-                    activo = true
-                )
-
-                _selectedUsuario.value = mockUsuario
-                _usuarioDetailState.value = UiState.Success(mockUsuario)
+                val response = apiService.getUsuarioById(id)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val usuario = response.body()!!
+                    _selectedUsuario.value = usuario
+                    _usuarioDetailState.value = UiState.Success(usuario)
+                } else {
+                    _usuarioDetailState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _usuarioDetailState.value = UiState.Error(
@@ -122,22 +102,23 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Filtra usuarios por rol
-     * @param rol Rol para filtrar
+     * Filtra usuarios por rol (filtro local)
      */
-    fun getUsuariosByRol(rol: Rol) {
+    fun getUsuariosByRol(rol: String) {
         viewModelScope.launch {
             try {
                 _usuariosState.value = UiState.Loading
-                _rolFiltro.value = rol
 
-                // TODO: Puede ser filtro local o endpoint específico
-
-                // MOCK TEMPORAL - Filtro local
-                kotlinx.coroutines.delay(300)
-
-                val mockUsuarios = generateMockUsuarios().filter { it.rol == rol }
-                _usuariosState.value = UiState.Success(mockUsuarios)
+                val response = apiService.getAllUsuarios()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val filtered = response.body()!!.filter { it.rol == rol }
+                    _usuariosState.value = UiState.Success(filtered)
+                } else {
+                    _usuariosState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _usuariosState.value = UiState.Error(
@@ -148,18 +129,23 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Obtiene solo usuarios activos
+     * Obtiene solo usuarios activos (filtro local)
      */
     fun getUsuariosActivos() {
         viewModelScope.launch {
             try {
                 _usuariosState.value = UiState.Loading
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(300)
-
-                val mockUsuarios = generateMockUsuarios().filter { it.activo }
-                _usuariosState.value = UiState.Success(mockUsuarios)
+                val response = apiService.getAllUsuarios()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val filtered = response.body()!!.filter { it.activo }
+                    _usuariosState.value = UiState.Success(filtered)
+                } else {
+                    _usuariosState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _usuariosState.value = UiState.Error(
@@ -169,101 +155,77 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // ========== CREAR USUARIO ==========
+    // ========== GESTIÓN DE USUARIOS ==========
 
     /**
-     * Crea un nuevo usuario en el sistema
-     * Conecta con: POST /api/usuarios
-     * Solo para ADMIN
-     * @param nombre Nombre completo del usuario
-     * @param email Email del usuario (debe ser único)
-     * @param password Contraseña inicial
-     * @param rol Rol del usuario (ADMIN, JEFE, SUPERVISOR, OPERADOR)
+     * Crea un nuevo usuario
+     * POST http://fotomarwms.ddns.net:8082/api/usuarios
+     * Patrón local-first
      */
-    // --- CREAR USUARIO (Modificado para guardar localmente primero) ---
-    fun createUsuario(request: CreateUsuarioRequest) {
-        viewModelScope.launch { // Coroutine para operaciones de BD
+    fun createUsuario(request: CrearUsuarioRequest) {
+        viewModelScope.launch {
             try {
                 _createUsuarioState.value = UiState.Loading
 
-                // 1. Crear la entidad local (sin la contraseña por seguridad)
+                // 1. Guardar localmente
                 val usuarioLocal = UsuarioLocal(
                     nombre = request.nombre,
                     email = request.email,
-                    rol = request.rol.name // Guardamos el nombre del Enum ("ADMIN", "OPERADOR", etc.)
+                    password = request.password,
+                    rol = request.rol,
+                    timestamp = System.currentTimeMillis()
                 )
+                val localId = usuarioDao.insertarUsuarioPendiente(usuarioLocal)
 
-                // 2. Guardar en SQLite ANTES de intentar enviar al backend
-                val idGeneradoLocal = usuarioDao.insertarUsuarioPendiente(usuarioLocal)
-                println("✅ Usuario ${request.email} pendiente de creación (ID local: ${idGeneradoLocal}) guardado en SQLite.")
-
-                // 3. (FUTURO) Aquí llamas a tu función para crear el usuario en el backend...
-                //    Necesitarás pasar el 'request' original que sí tiene la contraseña.
-                //    ej: val exitoBackend = miApi.crearUsuarioEnBackend(request)
-
-                // 4. (FUTURO) Si el backend responde OK (ej. 200), entonces borras el pendiente de SQLite:
-                // if (exitoBackend) {
-                //    borrarUsuarioPendienteLocalmente(idGeneradoLocal)
-                //    _createUsuarioState.value = UiState.Success(true) // Notifica éxito real
-                //    getAllUsuarios() // Recarga la lista para mostrar el nuevo usuario (si el backend lo devuelve)
-                // } else {
-                //    _createUsuarioState.value = UiState.Error("Falló el envío al backend, pero el usuario está guardado localmente.")
-                //    // Aquí podrías implementar lógica de reintento
-                // }
-
-                // --- Notificación temporal de éxito (solo guardado local) ---
-                _createUsuarioState.value = UiState.Success(true)
-                // getAllUsuarios() // Podrías llamar a getAllUsuarios si quieres ver un mock actualizado, o esperar al backend
-                // --- Fin Simulación ---
-
+                try {
+                    // 2. Enviar al backend
+                    val response = apiService.createUsuario(request)
+                    
+                    if (response.isSuccessful && response.code() == 200) {
+                        // 3. Eliminar local si éxito
+                        usuarioDao.deleteById(localId)
+                        _createUsuarioState.value = UiState.Success(true)
+                        // Recargar lista
+                        getAllUsuarios()
+                    } else {
+                        _createUsuarioState.value = UiState.Error(
+                            "Guardado localmente. Error backend: ${response.code()}"
+                        )
+                    }
+                } catch (e: Exception) {
+                    _createUsuarioState.value = UiState.Error(
+                        "Guardado localmente. Se sincronizará después."
+                    )
+                }
 
             } catch (e: Exception) {
-                _createUsuarioState.value = UiState.Error("Error DB al guardar usuario pendiente: ${e.message}")
+                _createUsuarioState.value = UiState.Error(
+                    message = "Error al crear usuario: ${e.message}"
+                )
             }
         }
     }
 
-    // ========== ACTUALIZAR USUARIO ==========
-
     /**
-     * Actualiza un usuario existente
-     * Conecta con: PUT /api/usuarios/{id}
-     * Solo para ADMIN
-     * @param id ID del usuario a actualizar
-     * @param nombre Nuevo nombre (opcional)
-     * @param email Nuevo email (opcional)
-     * @param password Nueva contraseña (opcional)
-     * @param rol Nuevo rol (opcional)
+     * Actualiza un usuario
+     * PUT http://fotomarwms.ddns.net:8082/api/usuarios/{id}
      */
-    fun updateUsuario(
-        id: Int,
-        nombre: String?,
-        email: String?,
-        password: String?,
-        rol: String?
-    ) {
+    fun updateUsuario(id: Int, request: ActualizarUsuarioRequest) {
         viewModelScope.launch {
             try {
                 _updateUsuarioState.value = UiState.Loading
 
-                // Crear request solo con campos no nulos
-                val request = UsuarioRequest(
-                    nombre = nombre ?: "",
-                    email = email ?: "",
-                    password = password ?: "",
-                    rol = rol ?: ""
-                )
-
-                // TODO: Conectar con backend
-                // usuarioRepository.updateUsuario(id, request)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                _updateUsuarioState.value = UiState.Success(true)
-
-                // Recargar usuario
-                getUsuarioById(id)
+                val response = apiService.updateUsuario(id, request)
+                
+                if (response.isSuccessful && response.code() == 200) {
+                    _updateUsuarioState.value = UiState.Success(true)
+                    // Recargar detalle
+                    getUsuarioDetail(id)
+                } else {
+                    _updateUsuarioState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _updateUsuarioState.value = UiState.Error(
@@ -273,29 +235,26 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // ========== ELIMINAR USUARIO ==========
-
     /**
-     * Elimina un usuario del sistema
-     * Conecta con: DELETE /api/usuarios/{id}
-     * Solo para ADMIN
-     * @param id ID del usuario a eliminar
+     * Elimina un usuario
+     * DELETE http://fotomarwms.ddns.net:8082/api/usuarios/{id}
      */
     fun deleteUsuario(id: Int) {
         viewModelScope.launch {
             try {
                 _deleteUsuarioState.value = UiState.Loading
 
-                // TODO: Conectar con backend
-                // usuarioRepository.deleteUsuario(id)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-
-                _deleteUsuarioState.value = UiState.Success(true)
-
-                // Recargar lista de usuarios
-                getAllUsuarios()
+                val response = apiService.deleteUsuario(id)
+                
+                if (response.isSuccessful && response.code() == 200) {
+                    _deleteUsuarioState.value = UiState.Success(true)
+                    // Recargar lista
+                    getAllUsuarios()
+                } else {
+                    _deleteUsuarioState.value = UiState.Error(
+                        message = "Error ${response.code()}: ${response.message()}"
+                    )
+                }
 
             } catch (e: Exception) {
                 _deleteUsuarioState.value = UiState.Error(
@@ -305,95 +264,37 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // ========== ACTIVAR/DESACTIVAR USUARIO ==========
-
     /**
-     * Activa o desactiva un usuario
-     * Conecta con: PUT /api/usuarios/{id}/toggle-activo
-     * Solo para ADMIN
-     * @param id ID del usuario
+     * Toggle activo/inactivo
+     * POST http://fotomarwms.ddns.net:8082/api/usuarios/{id}/toggle-activo
      */
-    fun toggleActivoUsuario(id: Int) {
+    fun toggleActivo(id: Int) {
         viewModelScope.launch {
             try {
-                _updateUsuarioState.value = UiState.Loading
-
-                // TODO: Conectar con backend
-                // usuarioRepository.toggleActivo(id)
-
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(400)
-
-                _updateUsuarioState.value = UiState.Success(true)
-
-                // Recargar lista
-                getAllUsuarios()
+                val response = apiService.toggleActivo(id)
+                
+                if (response.isSuccessful) {
+                    // Recargar lista
+                    getAllUsuarios()
+                }
 
             } catch (e: Exception) {
-                _updateUsuarioState.value = UiState.Error(
-                    message = "Error al cambiar estado del usuario: ${e.message}"
-                )
+                // Error silencioso
             }
         }
     }
 
-    // ========== VALIDACIONES ==========
-
-    /**
-     * Valida que el email tenga formato correcto
-     * @param email Email a validar
-     * @return true si es válido
-     */
-    fun isValidEmail(email: String): Boolean {
-        val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$")
-        return emailRegex.matches(email)
-    }
-
-    /**
-     * Valida que la contraseña cumpla requisitos mínimos
-     * @param password Contraseña a validar
-     * @return true si es válida (mínimo 6 caracteres)
-     */
-    fun isValidPassword(password: String): Boolean {
-        return password.length >= 6
-    }
-
-    /**
-     * Valida que el nombre no esté vacío
-     * @param nombre Nombre a validar
-     * @return true si es válido
-     */
-    fun isValidNombre(nombre: String): Boolean {
-        return nombre.isNotBlank() && nombre.length >= 3
-    }
-
     // ========== UTILIDADES ==========
 
-    /**
-     * Obtiene una lista de todos los roles disponibles
-     * @return Lista de roles
-     */
-    fun getAllRoles(): List<Rol> {
-        return Rol.values().toList()
+    fun clearUsuarios() {
+        _usuariosState.value = UiState.Idle
     }
 
-    /**
-     * Convierte un rol a string en español
-     * @param rol Rol a convertir
-     * @return Nombre del rol en español
-     */
-    fun getRolDisplayName(rol: Rol): String {
-        return when (rol) {
-            Rol.ADMIN -> "Administrador"
-            Rol.JEFE -> "Jefe de Bodega"
-            Rol.SUPERVISOR -> "Supervisor"
-            Rol.OPERADOR -> "Operador"
-        }
+    fun clearSelectedUsuario() {
+        _selectedUsuario.value = null
+        _usuarioDetailState.value = UiState.Idle
     }
 
-    /**
-     * Limpia los estados de operaciones
-     */
     fun clearCreateState() {
         _createUsuarioState.value = UiState.Idle
     }
@@ -404,70 +305,5 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearDeleteState() {
         _deleteUsuarioState.value = UiState.Idle
-    }
-
-    /**
-     * Limpia el filtro de rol
-     */
-    fun clearRolFilter() {
-        _rolFiltro.value = null
-        getAllUsuarios()
-    }
-
-    /**
-     * Limpia el usuario seleccionado
-     */
-    fun clearSelectedUsuario() {
-        _selectedUsuario.value = null
-        _usuarioDetailState.value = UiState.Idle
-    }
-
-    // ========== MOCK DATA HELPER ==========
-
-    private fun generateMockUsuarios(): List<Usuario> {
-        return listOf(
-            Usuario(
-                id = 1,
-                nombre = "Admin Sistema",
-                email = "admin@fotomar.cl",
-                rol = Rol.ADMIN,
-                activo = true
-            ),
-            Usuario(
-                id = 2,
-                nombre = "Carlos Rodríguez",
-                email = "carlos@fotomar.cl",
-                rol = Rol.JEFE,
-                activo = true
-            ),
-            Usuario(
-                id = 3,
-                nombre = "Ana Martínez",
-                email = "ana@fotomar.cl",
-                rol = Rol.SUPERVISOR,
-                activo = true
-            ),
-            Usuario(
-                id = 4,
-                nombre = "Juan Pérez",
-                email = "juan@fotomar.cl",
-                rol = Rol.OPERADOR,
-                activo = true
-            ),
-            Usuario(
-                id = 5,
-                nombre = "María García",
-                email = "maria@fotomar.cl",
-                rol = Rol.OPERADOR,
-                activo = true
-            ),
-            Usuario(
-                id = 6,
-                nombre = "Pedro López",
-                email = "pedro@fotomar.cl",
-                rol = Rol.OPERADOR,
-                activo = false
-            )
-        )
     }
 }
