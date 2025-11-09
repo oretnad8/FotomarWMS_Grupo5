@@ -7,7 +7,9 @@ import com.pneuma.fotomarwms_grupo5.db.AppDatabase
 import com.pneuma.fotomarwms_grupo5.db.entities.MensajeLocal
 import com.pneuma.fotomarwms_grupo5.models.*
 import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
-import com.pneuma.fotomarwms_grupo5.network.EnviarMensajeRequest
+import com.pneuma.fotomarwms_grupo5.network.MensajeRequest
+import com.pneuma.fotomarwms_grupo5.network.MensajeResponse
+import com.pneuma.fotomarwms_grupo5.network.ResumenMensajesResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +37,10 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
 
     private val _enviarState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val enviarState: StateFlow<UiState<Boolean>> = _enviarState.asStateFlow()
+    val enviarMensajeState: StateFlow<UiState<Boolean>> = _enviarState.asStateFlow()
+
+    private val _selectedMensaje = MutableStateFlow<Mensaje?>(null)
+    val selectedMensaje: StateFlow<Mensaje?> = _selectedMensaje.asStateFlow()
 
     // ========== CONSULTA DE MENSAJES ==========
 
@@ -47,10 +53,11 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _mensajesState.value = UiState.Loading
 
-                val response = apiService.getMensajes()
+                val response = apiService.getMensajes(null, null)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _mensajesState.value = UiState.Success(response.body()!!)
+                    val mensajes = response.body()!!.map { it.toDomainModel() }
+                    _mensajesState.value = UiState.Success(mensajes)
                 } else {
                     _mensajesState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -74,10 +81,11 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _mensajesState.value = UiState.Loading
 
-                val response = apiService.getMensajesNoLeidos()
+                val response = apiService.getMensajes(soloNoLeidos = true, soloImportantes = null)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _mensajesState.value = UiState.Success(response.body()!!)
+                    val mensajes = response.body()!!.map { it.toDomainModel() }
+                    _mensajesState.value = UiState.Success(mensajes)
                 } else {
                     _mensajesState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -101,10 +109,11 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _mensajesState.value = UiState.Loading
 
-                val response = apiService.getMensajesImportantes()
+                val response = apiService.getMensajes(soloNoLeidos = null, soloImportantes = true)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _mensajesState.value = UiState.Success(response.body()!!)
+                    val mensajes = response.body()!!.map { it.toDomainModel() }
+                    _mensajesState.value = UiState.Success(mensajes)
                 } else {
                     _mensajesState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -123,15 +132,20 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
      * Obtiene resumen de mensajes
      * GET http://fotomarwms.ddns.net:8086/api/mensajes/resumen
      */
+    fun getResumenMensajes() {
+        getResumen()
+    }
+
     fun getResumen() {
         viewModelScope.launch {
             try {
                 _resumenState.value = UiState.Loading
 
-                val response = apiService.getResumen()
+                val response = apiService.getResumenMensajes()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _resumenState.value = UiState.Success(response.body()!!)
+                    val resumen = response.body()!!.toDomainModel()
+                    _resumenState.value = UiState.Success(resumen)
                 } else {
                     _resumenState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -158,7 +172,8 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
                 val response = apiService.getMensajesEnviados()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _mensajesEnviadosState.value = UiState.Success(response.body()!!)
+                    val mensajes = response.body()!!.map { it.toDomainModel() }
+                    _mensajesEnviadosState.value = UiState.Success(mensajes)
                 } else {
                     _mensajesEnviadosState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -182,7 +197,7 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
     fun marcarLeido(id: Int) {
         viewModelScope.launch {
             try {
-                val response = apiService.marcarLeido(id)
+                val response = apiService.marcarComoLeido(id)
                 
                 if (response.isSuccessful) {
                     // Recargar mensajes
@@ -220,15 +235,15 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
      * POST http://fotomarwms.ddns.net:8086/api/mensajes/enviar
      * Patrón local-first
      */
-    fun enviarMensaje(destinatarioId: Int, asunto: String, contenido: String, importante: Boolean = false) {
+    fun enviarMensaje(destinatarioId: Int, titulo: String, contenido: String, importante: Boolean = false) {
         viewModelScope.launch {
             try {
                 _enviarState.value = UiState.Loading
 
                 // 1. Guardar localmente
                 val mensajeLocal = MensajeLocal(
-                    destinatarioId = destinatarioId,
-                    asunto = asunto,
+                    idDestinatario = destinatarioId,
+                    titulo = titulo,
                     contenido = contenido,
                     importante = importante,
                     timestamp = System.currentTimeMillis()
@@ -237,7 +252,12 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
 
                 try {
                     // 2. Enviar al backend
-                    val request = EnviarMensajeRequest(destinatarioId, asunto, contenido, importante)
+                    val request = MensajeRequest(
+                        idDestinatario = destinatarioId,
+                        titulo = titulo,
+                        contenido = contenido,
+                        importante = importante
+                    )
                     val response = apiService.enviarMensaje(request)
                     
                     if (response.isSuccessful && response.code() == 200) {
@@ -265,17 +285,17 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Envía mensaje broadcast
-     * POST http://fotomarwms.ddns.net:8086/api/mensajes/broadcast
+     * POST http://fotomarwms.ddns.net:8086/api/mensajes
      */
-    fun enviarBroadcast(asunto: String, contenido: String, importante: Boolean = false) {
+    fun enviarBroadcast(titulo: String, contenido: String, importante: Boolean = false) {
         viewModelScope.launch {
             try {
                 _enviarState.value = UiState.Loading
 
                 // 1. Guardar localmente
                 val mensajeLocal = MensajeLocal(
-                    destinatarioId = -1, // Broadcast
-                    asunto = asunto,
+                    idDestinatario = null, // Broadcast
+                    titulo = titulo,
                     contenido = contenido,
                     importante = importante,
                     timestamp = System.currentTimeMillis()
@@ -283,9 +303,14 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
                 val localId = mensajeDao.insertarMensajePendiente(mensajeLocal)
 
                 try {
-                    // 2. Enviar al backend
-                    val request = EnviarMensajeRequest(-1, asunto, contenido, importante)
-                    val response = apiService.enviarBroadcast(request)
+                    // 2. Enviar al backend (broadcast = idDestinatario null)
+                    val request = MensajeRequest(
+                        idDestinatario = null,
+                        titulo = titulo,
+                        contenido = contenido,
+                        importante = importante
+                    )
+                    val response = apiService.enviarMensaje(request)
                     
                     if (response.isSuccessful && response.code() == 200) {
                         // 3. Eliminar local si éxito
@@ -318,5 +343,49 @@ class MensajeViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearEnviarState() {
         _enviarState.value = UiState.Idle
+    }
+
+    fun selectMensaje(mensaje: Mensaje) {
+        _selectedMensaje.value = mensaje
+    }
+
+    fun clearSelectedMensaje() {
+        _selectedMensaje.value = null
+    }
+
+    fun enviarMensajeBroadcast(titulo: String, contenido: String, importante: Boolean) {
+        enviarBroadcast(titulo, contenido, importante)
+    }
+
+    // ========== CONVERSIÓN ==========
+
+    /**
+     * Convierte MensajeResponse a modelo de dominio
+     */
+    private fun MensajeResponse.toDomainModel(): Mensaje {
+        return Mensaje(
+            id = this.id,
+            titulo = this.titulo,
+            contenido = this.contenido,
+            importante = this.importante,
+            leido = this.leido,
+            idRemitente = this.idRemitente,
+            remitente = this.nombreRemitente,
+            idDestinatario = this.idDestinatario,
+            destinatario = null, // TODO: El backend debería devolver esto
+            fecha = this.fechaEnvio,
+            tipo = if (this.idDestinatario == null) TipoMensaje.BROADCAST else TipoMensaje.NORMAL
+        )
+    }
+
+    /**
+     * Convierte ResumenMensajesResponse a modelo de dominio
+     */
+    private fun ResumenMensajesResponse.toDomainModel(): ResumenMensajes {
+        return ResumenMensajes(
+            totalNoLeidos = this.mensajesNoLeidos,
+            totalImportantes = this.mensajesImportantes,
+            ultimoMensaje = null // TODO: El backend debería devolver esto
+        )
     }
 }

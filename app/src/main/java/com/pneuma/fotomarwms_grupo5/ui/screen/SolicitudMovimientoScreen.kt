@@ -316,26 +316,30 @@ fun SolicitudMovimientoScreen(
                         if (isValid) {
                             when (tipoMovimiento) {
                                 TipoMovimiento.INGRESO -> {
-                                    aprobacionViewModel.createSolicitudIngreso(
+                                    // Para INGRESO necesitamos ubicacionDestino como String
+                                    // Por ahora usamos el ID como String, pero idealmente debería ser código
+                                    aprobacionViewModel.solicitarIngreso(
                                         sku = sku,
                                         cantidad = cantidad.toInt(),
+                                        ubicacionDestino = "", // TODO: Obtener código de ubicación
                                         motivo = motivo
                                     )
                                 }
                                 TipoMovimiento.EGRESO -> {
-                                    aprobacionViewModel.createSolicitudEgreso(
+                                    aprobacionViewModel.solicitarEgreso(
                                         sku = sku,
                                         cantidad = cantidad.toInt(),
+                                        ubicacionOrigen = "", // TODO: Obtener código de ubicación
                                         motivo = motivo
                                     )
                                 }
                                 TipoMovimiento.REUBICACION -> {
-                                    aprobacionViewModel.createSolicitudReubicacion(
+                                    aprobacionViewModel.solicitarReubicacion(
                                         sku = sku,
                                         cantidad = cantidad.toInt(),
-                                        motivo = motivo,
-                                        idUbicacionOrigen = idUbicacionOrigen.toInt(),
-                                        idUbicacionDestino = idUbicacionDestino.toInt()
+                                        ubicacionOrigen = "", // TODO: Convertir ID a código
+                                        ubicacionDestino = "", // TODO: Convertir ID a código
+                                        motivo = motivo
                                     )
                                 }
                                 else -> {}

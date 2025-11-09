@@ -7,8 +7,8 @@ import com.pneuma.fotomarwms_grupo5.db.AppDatabase
 import com.pneuma.fotomarwms_grupo5.db.entities.UsuarioLocal
 import com.pneuma.fotomarwms_grupo5.models.*
 import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
-import com.pneuma.fotomarwms_grupo5.network.CrearUsuarioRequest
-import com.pneuma.fotomarwms_grupo5.network.ActualizarUsuarioRequest
+import com.pneuma.fotomarwms_grupo5.network.UsuarioRequest
+import com.pneuma.fotomarwms_grupo5.network.UsuarioResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,10 +54,11 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _usuariosState.value = UiState.Loading
 
-                val response = apiService.getAllUsuarios()
+                val response = apiService.getUsuarios()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _usuariosState.value = UiState.Success(response.body()!!)
+                    val usuarios = response.body()!!.map { it.toDomainModel() }
+                    _usuariosState.value = UiState.Success(usuarios)
                 } else {
                     _usuariosState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -84,7 +85,7 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
                 val response = apiService.getUsuarioById(id)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    val usuario = response.body()!!
+                    val usuario = response.body()!!.toDomainModel()
                     _selectedUsuario.value = usuario
                     _usuarioDetailState.value = UiState.Success(usuario)
                 } else {
@@ -109,10 +110,11 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _usuariosState.value = UiState.Loading
 
-                val response = apiService.getAllUsuarios()
+                val response = apiService.getUsuarios()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    val filtered = response.body()!!.filter { it.rol == rol }
+                    val usuarios = response.body()!!.map { it.toDomainModel() }
+                    val filtered = usuarios.filter { it.rol.name == rol }
                     _usuariosState.value = UiState.Success(filtered)
                 } else {
                     _usuariosState.value = UiState.Error(
@@ -136,10 +138,11 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _usuariosState.value = UiState.Loading
 
-                val response = apiService.getAllUsuarios()
+                val response = apiService.getUsuarios()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    val filtered = response.body()!!.filter { it.activo }
+                    val usuarios = response.body()!!.map { it.toDomainModel() }
+                    val filtered = usuarios.filter { it.activo }
                     _usuariosState.value = UiState.Success(filtered)
                 } else {
                     _usuariosState.value = UiState.Error(
@@ -162,23 +165,28 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
      * POST http://fotomarwms.ddns.net:8082/api/usuarios
      * Patrón local-first
      */
-    fun createUsuario(request: CrearUsuarioRequest) {
+    fun createUsuario(nombre: String, email: String, password: String, rol: String) {
         viewModelScope.launch {
             try {
                 _createUsuarioState.value = UiState.Loading
 
                 // 1. Guardar localmente
                 val usuarioLocal = UsuarioLocal(
-                    nombre = request.nombre,
-                    email = request.email,
-                    password = request.password,
-                    rol = request.rol,
+                    nombre = nombre,
+                    email = email,
+                    rol = rol, // Guardamos como String
                     timestamp = System.currentTimeMillis()
                 )
                 val localId = usuarioDao.insertarUsuarioPendiente(usuarioLocal)
 
                 try {
                     // 2. Enviar al backend
+                    val request = UsuarioRequest(
+                        nombre = nombre,
+                        email = email,
+                        password = password,
+                        rol = rol
+                    )
                     val response = apiService.createUsuario(request)
                     
                     if (response.isSuccessful && response.code() == 200) {
@@ -210,11 +218,17 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
      * Actualiza un usuario
      * PUT http://fotomarwms.ddns.net:8082/api/usuarios/{id}
      */
-    fun updateUsuario(id: Int, request: ActualizarUsuarioRequest) {
+    fun updateUsuario(id: Int, nombre: String, email: String, rol: String, password: String? = null) {
         viewModelScope.launch {
             try {
                 _updateUsuarioState.value = UiState.Loading
 
+                val request = UsuarioRequest(
+                    nombre = nombre,
+                    email = email,
+                    password = password ?: "", // Si no se proporciona, mantener la actual
+                    rol = rol
+                )
                 val response = apiService.updateUsuario(id, request)
                 
                 if (response.isSuccessful && response.code() == 200) {
@@ -305,5 +319,33 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearDeleteState() {
         _deleteUsuarioState.value = UiState.Idle
+    }
+
+    fun toggleActivoUsuario(id: Int) {
+        toggleActivo(id)
+    }
+
+    fun getRolDisplayName(rol: Rol): String {
+        return when (rol) {
+            Rol.ADMIN -> "Administrador"
+            Rol.JEFE -> "Jefe de Bodega"
+            Rol.SUPERVISOR -> "Supervisor"
+            Rol.OPERADOR -> "Operador"
+        }
+    }
+
+    // ========== CONVERSIÓN ==========
+
+    /**
+     * Convierte UsuarioResponse a modelo de dominio
+     */
+    private fun UsuarioResponse.toDomainModel(): Usuario {
+        return Usuario(
+            id = this.id,
+            nombre = this.nombre,
+            email = this.email,
+            rol = Rol.valueOf(this.rol),
+            activo = this.activo
+        )
     }
 }

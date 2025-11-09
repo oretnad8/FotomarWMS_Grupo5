@@ -94,7 +94,7 @@ class ProductoViewModel(
                 _productoDetailState.value = UiState.Loading
 
                 val result = productoRepository.getProductoBySku(sku)
-                
+
                 if (result.isSuccess) {
                     val producto = result.getOrNull()!!
                     _selectedProducto.value = producto
@@ -110,6 +110,22 @@ class ProductoViewModel(
                     message = "Error al obtener producto: ${e.message}"
                 )
             }
+        }
+    }
+
+    // ========== FUNCIÓN NUEVA AÑADIDA ==========
+
+    /**
+     * Fuerza la recarga del detalle del producto actualmente seleccionado.
+     * Es útil para llamar desde fuera del ViewModel (ej. desde un UbicacionViewModel)
+     * después de una acción que modifica el producto indirectamente (como asignar una ubicación).
+     */
+    fun refreshProductoDetail() {
+        // Obtenemos el SKU del producto que ya está cargado
+        val currentSku = _selectedProducto.value?.sku
+        if (currentSku != null) {
+            // Reutilizamos la lógica que ya teníamos
+            getProductoDetail(currentSku)
         }
     }
 

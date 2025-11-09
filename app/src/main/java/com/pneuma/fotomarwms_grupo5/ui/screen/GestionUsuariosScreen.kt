@@ -366,19 +366,13 @@ private fun CreateUsuarioDialog(
                     if (nombre.isNotBlank() && email.isNotBlank() &&
                         password.isNotBlank() && rolSeleccionado != null) {
 
-                        // 1. Usa la clase que creamos: "CreateUsuarioRequest"
-                        val nuevoUsuarioRequest = CreateUsuarioRequest(
+                        // Llamamos a la función del ViewModel con parámetros individuales
+                        usuarioViewModel.createUsuario(
                             nombre = nombre,
                             email = email,
-                            // 2. Nuestra clase usa 'contrasena', no 'password'
-                            contrasena = password,
-                            // 3. Le pasamos el Enum 'Rol' completo, no el .name
-                            rol = rolSeleccionado!!
+                            password = password,
+                            rol = rolSeleccionado!!.name
                         )
-
-                        // Ahora sí, llamamos a la función del ViewModel
-                        // (Asumiendo que tu ViewModel se llama 'usuarioViewModel')
-                        usuarioViewModel.createUsuario(nuevoUsuarioRequest)
 
                         // Y probablemente quieras cerrar el diálogo después de crear
                         // onDismiss() o onConfirm()

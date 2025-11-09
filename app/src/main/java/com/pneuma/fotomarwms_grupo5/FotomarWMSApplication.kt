@@ -47,13 +47,17 @@ class FotomarWMSApplication : Application() {
     /**
      * Guarda el token de autenticación
      */
-    fun saveAuthToken(token: String, rol: String, userId: Int) {
+    fun saveAuthToken(token: String, rol: String, userId: Int, nombre: String? = null, email: String? = null) {
         val prefs = getSharedPreferences("auth", MODE_PRIVATE)
-        prefs.edit()
+        val editor = prefs.edit()
             .putString("token", token)
             .putString("rol", rol)
             .putInt("userId", userId)
-            .apply()
+        
+        nombre?.let { editor.putString("nombre", it) }
+        email?.let { editor.putString("email", it) }
+        
+        editor.apply()
         
         RetrofitClient.setAuthToken(token)
     }

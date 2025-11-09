@@ -108,7 +108,7 @@ fun AprobacionesScreen(
                                 text = "Todos",
                                 selected = estadoFiltro == null,
                                 onClick = {
-                                    aprobacionViewModel.clearEstadoFilter()
+                                    aprobacionViewModel.getAllAprobaciones()
                                 },
                                 modifier = Modifier.weight(1f)
                             )

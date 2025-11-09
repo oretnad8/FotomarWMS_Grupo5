@@ -44,7 +44,7 @@ fun DetalleProductoScreen(
     // Estados
     val productoDetailState by productoViewModel.productoDetailState.collectAsStateWithLifecycle()
     val selectedProducto by productoViewModel.selectedProducto.collectAsStateWithLifecycle()
-    val updateState by productoViewModel.updateProductoState.collectAsStateWithLifecycle()
+    val updateState by productoViewModel.updateState.collectAsStateWithLifecycle()
 
     // Estados de edición
     var isEditing by remember { mutableStateOf(false) }
@@ -300,21 +300,60 @@ fun DetalleProductoScreen(
 
                                 } else {
                                     // MODO VISTA: Solo mostrar
-                                    DetailRow(
-                                        label = "Código Individual",
-                                        value = producto.codigoBarrasIndividual ?: "No disponible"
-                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "Código Individual",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = producto.codigoBarrasIndividual ?: "No disponible",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
 
-                                    DetailRow(
-                                        label = "LPN (Código de Caja)",
-                                        value = producto.lpn ?: "No disponible"
-                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "LPN (Código de Caja)",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = producto.lpn ?: "No disponible",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
 
                                     if (producto.lpnDesc != null) {
-                                        DetailRow(
-                                            label = "Descripción LPN",
-                                            value = producto.lpnDesc
-                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Descripción LPN",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = producto.lpnDesc,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -459,7 +498,7 @@ fun DetalleProductoScreen(
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                     Text(
-                                                        text = "Cantidad: ${ubicacion.cantidad}",
+                                                        text = "Cantidad: ${ubicacion.cantidadEnUbicacion}",
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
@@ -501,7 +540,7 @@ fun DetalleProductoScreen(
                 editedCodigoBarras = code
                 showBarcodeScannerForIndividual = false
             },
-            onDismiss = {
+            onClose = {
                 showBarcodeScannerForIndividual = false
             }
         )
@@ -514,7 +553,7 @@ fun DetalleProductoScreen(
                 editedLpn = code
                 showBarcodeScannerForLPN = false
             },
-            onDismiss = {
+            onClose = {
                 showBarcodeScannerForLPN = false
             }
         )
@@ -523,10 +562,10 @@ fun DetalleProductoScreen(
     // ========== DIÁLOGO DE ASIGNAR UBICACIÓN ==========
     if (showAsignarDialog && selectedProducto != null) {
         AsignarUbicacionDialog(
-            producto = selectedProducto!!,
-            ubicacionViewModel = ubicacionViewModel,
+            sku = selectedProducto!!.sku,
             onDismiss = { showAsignarDialog = false },
-            onSuccess = {
+            onConfirm = { codigoUbicacion, cantidad ->
+                ubicacionViewModel.asignarProducto(selectedProducto!!.sku, codigoUbicacion, cantidad)
                 showAsignarDialog = false
                 // Recargar producto para ver nuevas ubicaciones
                 productoViewModel.getProductoDetail(sku)

@@ -47,7 +47,7 @@ fun DetalleAprobacionScreen(
 
     // Cargar detalle al iniciar
     LaunchedEffect(aprobacionId) {
-        aprobacionViewModel.getAprobacionById(aprobacionId)
+        aprobacionViewModel.getAprobacionDetail(aprobacionId)
     }
 
     // Manejar respuesta
@@ -342,7 +342,7 @@ fun DetalleAprobacionScreen(
                     ErrorState(
                         message = state.message,
                         onRetry = {
-                            aprobacionViewModel.getAprobacionById(aprobacionId)
+                            aprobacionViewModel.getAprobacionDetail(aprobacionId)
                         }
                     )
                 }

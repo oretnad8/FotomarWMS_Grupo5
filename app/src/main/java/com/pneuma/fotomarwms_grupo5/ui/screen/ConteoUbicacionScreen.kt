@@ -45,8 +45,9 @@ fun ConteoUbicacionScreen(
     
     // Cargar ubicación al iniciar
     LaunchedEffect(idUbicacion) {
-        // TODO: Obtener ubicación por ID
-        // Por ahora usamos código mock
+        // TODO: Obtener ubicación por ID desde el backend
+        // Por ahora usamos un código de ejemplo, pero debería obtenerse del backend
+        // basado en idUbicacion
         ubicacionViewModel.getUbicacionDetail("A-12")
     }
     

@@ -14,13 +14,13 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
 
     // URLs base de los microservicios
-    private const val BASE_URL_AUTH = "http://fotomarwms.ddns.net:8081/"
-    private const val BASE_URL_USUARIOS = "http://fotomarwms.ddns.net:8082/"
-    private const val BASE_URL_PRODUCTOS = "http://fotomarwms.ddns.net:8083/"
-    private const val BASE_URL_UBICACIONES = "http://fotomarwms.ddns.net:8084/"
-    private const val BASE_URL_APROBACIONES = "http://fotomarwms.ddns.net:8085/"
-    private const val BASE_URL_MENSAJES = "http://fotomarwms.ddns.net:8086/"
-    private const val BASE_URL_INVENTARIO = "http://fotomarwms.ddns.net:8087/"
+    private const val BASE_URL_AUTH = "http://fotomarwmsdb.ddns.net:8081/"
+    private const val BASE_URL_USUARIOS = "http://fotomarwmsdb.ddns.net:8082/"
+    private const val BASE_URL_PRODUCTOS = "http://fotomarwmsdb.ddns.net:8083/"
+    private const val BASE_URL_UBICACIONES = "http://fotomarwmsdb.ddns.net:8084/"
+    private const val BASE_URL_APROBACIONES = "http://fotomarwmsdb.ddns.net:8085/"
+    private const val BASE_URL_MENSAJES = "http://fotomarwmsdb.ddns.net:8086/"
+    private const val BASE_URL_INVENTARIO = "http://fotomarwmsdb.ddns.net:8087/"
 
     // Token de autenticación (se actualiza después del login)
     private var authToken: String? = null

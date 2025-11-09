@@ -1,8 +1,13 @@
 package com.pneuma.fotomarwms_grupo5.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.pneuma.fotomarwms_grupo5.FotomarWMSApplication
 import com.pneuma.fotomarwms_grupo5.models.*
+import com.pneuma.fotomarwms_grupo5.network.LoginRequest
+import com.pneuma.fotomarwms_grupo5.network.LoginResponse
+import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,8 +16,12 @@ import kotlinx.coroutines.launch
 /**
  * ViewModel para autenticación y gestión de sesión
  * Maneja login, logout, validación de token y estado del usuario actual
+ * USA MICROSERVICIOS REALES - SIN MOCKS
  */
-class AuthViewModel : ViewModel() {
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val apiService = RetrofitClient.authService
+    private val app = application as? FotomarWMSApplication
 
     // ========== ESTADO DE AUTENTICACIÓN ==========
 
@@ -38,68 +47,53 @@ class AuthViewModel : ViewModel() {
             try {
                 _authState.value = AuthState.Loading
 
-                // TODO: Conectar con backend
-                // val response = authRepository.login(LoginRequest(email, password))
+                // Llamar al API real
+                val request = LoginRequest(email = email, password = password)
+                val response = apiService.login(request)
 
-                // MOCK TEMPORAL - Simula respuesta del backend
-                kotlinx.coroutines.delay(1000) // Simula latencia de red
+                if (response.isSuccessful && response.body() != null) {
+                    val loginResponse = response.body()!!
 
-                // Simulación de diferentes usuarios según email
-                val mockResponse = when {
-                    email.contains("admin") -> LoginResponse(
-                        token = "mock-token-admin-123",
-                        type = "Bearer",
-                        id = 1,
-                        nombre = "Admin Sistema",
-                        email = email,
-                        rol = "ADMIN"
+                    // Guardar token en RetrofitClient
+                    RetrofitClient.setAuthToken(loginResponse.token)
+
+                    // Guardar token y usuario en estado
+                    _authToken.value = loginResponse.token
+                    _currentUser.value = Usuario(
+                        id = loginResponse.id,
+                        nombre = loginResponse.nombre,
+                        email = loginResponse.email,
+                        rol = Rol.valueOf(loginResponse.rol),
+                        activo = true
                     )
-                    email.contains("jefe") -> LoginResponse(
-                        token = "mock-token-jefe-456",
-                        type = "Bearer",
-                        id = 2,
-                        nombre = "Jefe de Bodega",
-                        email = email,
-                        rol = "JEFE"
+
+                    // Guardar token en SharedPreferences usando FotomarWMSApplication
+                    app?.saveAuthToken(
+                        token = loginResponse.token,
+                        rol = loginResponse.rol,
+                        userId = loginResponse.id,
+                        nombre = loginResponse.nombre,
+                        email = loginResponse.email
                     )
-                    email.contains("supervisor") -> LoginResponse(
-                        token = "mock-token-supervisor-789",
-                        type = "Bearer",
-                        id = 3,
-                        nombre = "Supervisor Bodega",
-                        email = email,
-                        rol = "SUPERVISOR"
+
+                    _authState.value = AuthState.Authenticated(
+                        usuario = _currentUser.value!!,
+                        token = loginResponse.token
                     )
-                    else -> LoginResponse(
-                        token = "mock-token-operador-999",
-                        type = "Bearer",
-                        id = 4,
-                        nombre = "Operador Bodega",
-                        email = email,
-                        rol = "OPERADOR"
-                    )
+                } else {
+                    // Error del servidor
+                    val errorMessage = when (response.code()) {
+                        401 -> "Credenciales incorrectas"
+                        403 -> "Usuario no autorizado"
+                        404 -> "Usuario no encontrado"
+                        else -> "Error al iniciar sesión: ${response.message()}"
+                    }
+                    _authState.value = AuthState.Error(message = errorMessage)
                 }
-
-                // Guardar token y usuario
-                _authToken.value = mockResponse.token
-                _currentUser.value = Usuario(
-                    id = mockResponse.id,
-                    nombre = mockResponse.nombre,
-                    email = mockResponse.email,
-                    rol = Rol.valueOf(mockResponse.rol),
-                    activo = true
-                )
-
-                _authState.value = AuthState.Authenticated(
-                    usuario = _currentUser.value!!,
-                    token = mockResponse.token
-                )
-
-                // TODO: Guardar token en SharedPreferences o DataStore
 
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(
-                    message = e.message ?: "Error desconocido en el login"
+                    message = e.message ?: "Error de conexión. Verifica tu conexión a internet."
                 )
             }
         }
@@ -112,18 +106,25 @@ class AuthViewModel : ViewModel() {
     fun logout() {
         viewModelScope.launch {
             try {
-                // TODO: Llamar al backend para invalidar el token
-                // authRepository.logout(token = _authToken.value)
+                // Llamar al backend para invalidar el token
+                val response = apiService.logout()
+
+                // Incluso si falla el logout en el servidor, limpiar sesión local
+                // Limpiar token de RetrofitClient
+                RetrofitClient.setAuthToken(null)
+
+                // Limpiar token de SharedPreferences
+                app?.clearAuthToken()
 
                 // Limpiar estado local
                 _authToken.value = null
                 _currentUser.value = null
                 _authState.value = AuthState.NotAuthenticated
 
-                // TODO: Limpiar token de SharedPreferences o DataStore
-
             } catch (e: Exception) {
                 // Incluso si falla, limpiar sesión local
+                RetrofitClient.setAuthToken(null)
+                app?.clearAuthToken()
                 _authToken.value = null
                 _currentUser.value = null
                 _authState.value = AuthState.NotAuthenticated
@@ -139,40 +140,57 @@ class AuthViewModel : ViewModel() {
     fun validateToken() {
         viewModelScope.launch {
             try {
-                // TODO: Recuperar token de SharedPreferences o DataStore
-                val storedToken = _authToken.value
+                // Recuperar token de SharedPreferences
+                val prefs = getApplication<Application>().getSharedPreferences("auth", Application.MODE_PRIVATE)
+                val storedToken = prefs.getString("token", null)
+                val storedRol = prefs.getString("rol", null)
+                val storedUserId = prefs.getInt("userId", -1)
+                val storedNombre = prefs.getString("nombre", null)
+                val storedEmail = prefs.getString("email", null)
 
                 if (storedToken == null) {
                     _authState.value = AuthState.NotAuthenticated
                     return@launch
                 }
 
+                // Configurar token en RetrofitClient para la validación
+                RetrofitClient.setAuthToken(storedToken)
+
                 _authState.value = AuthState.Loading
 
-                // TODO: Validar token con backend
-                // val isValid = authRepository.validateToken(storedToken)
+                // Validar token con backend
+                val response = apiService.validateToken()
 
-                // MOCK TEMPORAL
-                kotlinx.coroutines.delay(500)
-                val isValid = true // Simular token válido
-
-                if (isValid) {
-                    // Token válido, recuperar info del usuario
-                    // TODO: En producción, el backend debería devolver los datos del usuario
-                    _authState.value = AuthState.Authenticated(
-                        usuario = _currentUser.value ?: Usuario(
-                            id = 1,
-                            nombre = "Usuario Mock",
-                            email = "mock@fotomar.cl",
-                            rol = Rol.OPERADOR
-                        ),
-                        token = storedToken
-                    )
+                if (response.isSuccessful) {
+                    // Token válido, recuperar info del usuario desde SharedPreferences
+                    if (storedRol != null && storedUserId != -1 && storedNombre != null && storedEmail != null) {
+                        val usuario = Usuario(
+                            id = storedUserId,
+                            nombre = storedNombre,
+                            email = storedEmail,
+                            rol = Rol.valueOf(storedRol),
+                            activo = true
+                        )
+                        _currentUser.value = usuario
+                        _authToken.value = storedToken
+                        _authState.value = AuthState.Authenticated(
+                            usuario = usuario,
+                            token = storedToken
+                        )
+                    } else {
+                        // Datos incompletos, requerir login
+                        app?.clearAuthToken()
+                        _authState.value = AuthState.NotAuthenticated
+                    }
                 } else {
+                    // Token inválido o expirado
+                    app?.clearAuthToken()
                     _authState.value = AuthState.NotAuthenticated
                 }
 
             } catch (e: Exception) {
+                // Error de conexión, limpiar sesión
+                app?.clearAuthToken()
                 _authState.value = AuthState.NotAuthenticated
             }
         }

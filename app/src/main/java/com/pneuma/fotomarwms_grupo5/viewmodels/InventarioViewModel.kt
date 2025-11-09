@@ -7,7 +7,9 @@ import com.pneuma.fotomarwms_grupo5.db.AppDatabase
 import com.pneuma.fotomarwms_grupo5.db.entities.ConteoLocal
 import com.pneuma.fotomarwms_grupo5.models.*
 import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
-import com.pneuma.fotomarwms_grupo5.network.RegistrarConteoRequest
+import com.pneuma.fotomarwms_grupo5.network.ConteoRequest
+import com.pneuma.fotomarwms_grupo5.network.ProgresoInventarioResponse
+import com.pneuma.fotomarwms_grupo5.network.DiferenciaInventarioResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +39,9 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
     private val _finalizarState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val finalizarState: StateFlow<UiState<Boolean>> = _finalizarState.asStateFlow()
 
+    private val _filtroTipoDiferencia = MutableStateFlow<TipoDiferencia?>(null)
+    val filtroTipoDiferencia: StateFlow<TipoDiferencia?> = _filtroTipoDiferencia.asStateFlow()
+
     // ========== PROGRESO ==========
 
     /**
@@ -51,7 +56,8 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
                 val response = apiService.getProgreso()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _progresoState.value = UiState.Success(response.body()!!)
+                    val progreso = response.body()!!.toDomainModel()
+                    _progresoState.value = UiState.Success(progreso)
                 } else {
                     _progresoState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -73,7 +79,7 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
      * POST http://fotomarwms.ddns.net:8087/api/inventario/conteo
      * Patrón local-first
      */
-    fun registrarConteo(sku: String, ubicacion: String, cantidadContada: Int) {
+    fun registrarConteo(sku: String, idUbicacion: Int, cantidadFisica: Int) {
         viewModelScope.launch {
             try {
                 _conteoState.value = UiState.Loading
@@ -81,15 +87,19 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
                 // 1. Guardar localmente
                 val conteoLocal = ConteoLocal(
                     sku = sku,
-                    ubicacion = ubicacion,
-                    cantidadContada = cantidadContada,
+                    idUbicacion = idUbicacion,
+                    cantidadFisica = cantidadFisica,
                     timestamp = System.currentTimeMillis()
                 )
                 val localId = conteoDao.insertarConteoPendiente(conteoLocal)
 
                 try {
                     // 2. Enviar al backend
-                    val request = RegistrarConteoRequest(sku, ubicacion, cantidadContada)
+                    val request = ConteoRequest(
+                        sku = sku,
+                        idUbicacion = idUbicacion,
+                        cantidadFisica = cantidadFisica
+                    )
                     val response = apiService.registrarConteo(request)
                     
                     if (response.isSuccessful && response.code() == 200) {
@@ -119,22 +129,37 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Registra múltiples conteos
-     * POST http://fotomarwms.ddns.net:8087/api/inventario/conteos-batch
+     * POST http://fotomarwms.ddns.net:8087/api/inventario/conteo
+     * Nota: El API no tiene endpoint batch, se envía uno por uno
      */
-    fun registrarConteosBatch(conteos: List<RegistrarConteoRequest>) {
+    fun registrarConteosBatch(conteos: List<ConteoRequest>) {
         viewModelScope.launch {
             try {
                 _conteoState.value = UiState.Loading
 
-                val response = apiService.registrarConteosBatch(conteos)
+                // Enviar cada conteo individualmente
+                var successCount = 0
+                var errorCount = 0
                 
-                if (response.isSuccessful && response.code() == 200) {
+                conteos.forEach { conteo ->
+                    try {
+                        val response = apiService.registrarConteo(conteo)
+                        if (response.isSuccessful) {
+                            successCount++
+                        } else {
+                            errorCount++
+                        }
+                    } catch (e: Exception) {
+                        errorCount++
+                    }
+                }
+                
+                if (errorCount == 0) {
                     _conteoState.value = UiState.Success(true)
-                    // Actualizar progreso
                     getProgreso()
                 } else {
                     _conteoState.value = UiState.Error(
-                        message = "Error ${response.code()}: ${response.message()}"
+                        "$successCount exitosos, $errorCount fallidos"
                     )
                 }
 
@@ -160,7 +185,8 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
                 val response = apiService.getDiferencias()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _diferenciasState.value = UiState.Success(response.body()!!)
+                    val diferencias = response.body()!!.map { it.toDomainModel() }
+                    _diferenciasState.value = UiState.Success(diferencias)
                 } else {
                     _diferenciasState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -180,14 +206,23 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
      * GET http://fotomarwms.ddns.net:8087/api/inventario/diferencias?soloConDiferencias=true
      */
     fun getDiferenciasConProblemas() {
+        getDiferenciasConDiscrepancia()
+    }
+
+    /**
+     * Obtiene solo las diferencias (sin correctos)
+     * GET http://fotomarwms.ddns.net:8087/api/inventario/diferencias?soloConDiferencias=true
+     */
+    fun getDiferenciasConDiscrepancia() {
         viewModelScope.launch {
             try {
                 _diferenciasState.value = UiState.Loading
 
-                val response = apiService.getDiferenciasConProblemas()
+                val response = apiService.getDiferencias(soloConDiferencias = true)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _diferenciasState.value = UiState.Success(response.body()!!)
+                    val diferencias = response.body()!!.map { it.toDomainModel() }
+                    _diferenciasState.value = UiState.Success(diferencias)
                 } else {
                     _diferenciasState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -213,7 +248,8 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
                 val response = apiService.getDiferencias()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    val filtered = response.body()!!.filter { it.tipoDiferencia == tipo }
+                    val diferencias = response.body()!!.map { it.toDomainModel() }
+                    val filtered = diferencias.filter { it.tipoDiferencia == tipo }
                     _diferenciasState.value = UiState.Success(filtered)
                 } else {
                     _diferenciasState.value = UiState.Error(
@@ -270,5 +306,51 @@ class InventarioViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearFinalizarState() {
         _finalizarState.value = UiState.Idle
+    }
+
+    fun clearFiltroTipo() {
+        _filtroTipoDiferencia.value = null
+    }
+
+    // ========== CONVERSIÓN ==========
+
+    /**
+     * Convierte ProgresoInventarioResponse a modelo de dominio
+     */
+    private fun ProgresoInventarioResponse.toDomainModel(): ProgresoInventario {
+        return ProgresoInventario(
+            totalUbicaciones = this.totalUbicaciones,
+            ubicacionesContadas = this.ubicacionesContadas,
+            ubicacionesPendientes = this.ubicacionesPendientes,
+            porcentajeCompletado = this.porcentajeCompletado,
+            totalDiferenciasRegistradas = this.totalDiferenciasRegistradas,
+            totalFaltantes = this.totalFaltantes,
+            totalSobrantes = this.totalSobrantes,
+            ubicacionesConDiferencias = this.ubicacionesConDiferencias
+        )
+    }
+
+    /**
+     * Convierte DiferenciaInventarioResponse a modelo de dominio
+     */
+    private fun DiferenciaInventarioResponse.toDomainModel(): DiferenciaInventario {
+        val tipoDiferencia = when {
+            this.diferencia < 0 -> TipoDiferencia.FALTANTE
+            this.diferencia > 0 -> TipoDiferencia.SOBRANTE
+            else -> TipoDiferencia.CORRECTO
+        }
+        
+        return DiferenciaInventario(
+            id = 0, // TODO: El backend debería devolver esto
+            sku = this.sku,
+            descripcionProducto = this.descripcion,
+            idUbicacion = this.idUbicacion,
+            codigoUbicacion = this.codigoUbicacion,
+            cantidadSistema = this.cantidadSistema,
+            cantidadFisica = this.cantidadFisica,
+            diferencia = this.diferencia,
+            tipoDiferencia = tipoDiferencia,
+            fechaConteo = "" // TODO: El backend debería devolver esto
+        )
     }
 }

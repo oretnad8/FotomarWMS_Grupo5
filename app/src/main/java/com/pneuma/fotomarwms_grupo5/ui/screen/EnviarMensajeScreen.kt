@@ -298,7 +298,7 @@ fun EnviarMensajeScreen(
                             )
                         } else {
                             mensajeViewModel.enviarMensaje(
-                                idDestinatario = destinatarioSeleccionado!!,
+                                destinatarioId = destinatarioSeleccionado!!,
                                 titulo = titulo,
                                 contenido = contenido,
                                 importante = importante

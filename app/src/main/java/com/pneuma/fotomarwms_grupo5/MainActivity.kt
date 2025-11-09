@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -17,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.pneuma.fotomarwms_grupo5.navigation.Screen
+import com.pneuma.fotomarwms_grupo5.FotomarWMSApplication
 import com.pneuma.fotomarwms_grupo5.ui.screen.*
 import com.pneuma.fotomarwms_grupo5.ui.theme.TestTheme
 import com.pneuma.fotomarwms_grupo5.viewmodels.*
@@ -48,13 +50,31 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun FotomarWMSApp() {
+    // Obtener Application
+    val app = LocalContext.current.applicationContext as FotomarWMSApplication
+    
     // NavController para navegación
     val navController = rememberNavController()
 
     // ViewModels compartidos entre pantallas
     val authViewModel: AuthViewModel = viewModel()
-    val productoViewModel: ProductoViewModel = viewModel()
-    val ubicacionViewModel: UbicacionViewModel = viewModel()
+    
+    // ViewModels que requieren repositorios (usar factory)
+    val productoViewModel: ProductoViewModel = viewModel(
+        factory = ViewModelFactory(
+            application = app,
+            productoRepository = app.productoRepository
+        )
+    )
+    
+    val ubicacionViewModel: UbicacionViewModel = viewModel(
+        factory = ViewModelFactory(
+            application = app,
+            ubicacionRepository = app.ubicacionRepository
+        )
+    )
+    
+    // ViewModels que solo requieren Application
     val aprobacionViewModel: AprobacionViewModel = viewModel()
     val mensajeViewModel: MensajeViewModel = viewModel()
     val inventarioViewModel: InventarioViewModel = viewModel()
@@ -201,11 +221,15 @@ fun FotomarWMSApp() {
                 DetalleProductoScreen(
                     sku = sku,
                     productoViewModel = productoViewModel,
+                    ubicacionViewModel = ubicacionViewModel,
                     onNavigateBack = {
                         navController.popBackStack()
                     },
                     onNavigateToUbicacion = { codigo ->
                         navController.navigate("detalle_ubicacion/$codigo")
+                    },
+                    onNavigateToAsignarUbicacion = { sku ->
+                        navController.navigate("asignar_ubicacion/$sku")
                     }
                 )
             }

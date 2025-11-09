@@ -9,6 +9,8 @@ import com.pneuma.fotomarwms_grupo5.models.*
 import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
 import com.pneuma.fotomarwms_grupo5.network.AprobarRequest
 import com.pneuma.fotomarwms_grupo5.network.RechazarRequest
+import com.pneuma.fotomarwms_grupo5.network.AprobacionResponse
+import com.pneuma.fotomarwms_grupo5.network.AprobacionRequest as NetworkAprobacionRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,10 +61,11 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 _aprobacionesState.value = UiState.Loading
 
-                val response = apiService.getAllAprobaciones()
+                val response = apiService.getAprobaciones(null)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _aprobacionesState.value = UiState.Success(response.body()!!)
+                    val aprobaciones = response.body()!!.map { it.toDomainModel() }
+                    _aprobacionesState.value = UiState.Success(aprobaciones)
                 } else {
                     _aprobacionesState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -87,10 +90,11 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                 _aprobacionesState.value = UiState.Loading
                 _estadoFiltro.value = estado
 
-                val response = apiService.getAprobacionesByEstado(estado.name)
+                val response = apiService.getAprobaciones(estado.name)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _aprobacionesState.value = UiState.Success(response.body()!!)
+                    val aprobaciones = response.body()!!.map { it.toDomainModel() }
+                    _aprobacionesState.value = UiState.Success(aprobaciones)
                 } else {
                     _aprobacionesState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -117,7 +121,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                 val response = apiService.getAprobacionById(id)
                 
                 if (response.isSuccessful && response.body() != null) {
-                    val aprobacion = response.body()!!
+                    val aprobacion = response.body()!!.toDomainModel()
                     _selectedAprobacion.value = aprobacion
                     _aprobacionDetailState.value = UiState.Success(aprobacion)
                 } else {
@@ -146,7 +150,8 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                 val response = apiService.getMisSolicitudes()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    _misSolicitudesState.value = UiState.Success(response.body()!!)
+                    val aprobaciones = response.body()!!.map { it.toDomainModel() }
+                    _misSolicitudesState.value = UiState.Success(aprobaciones)
                 } else {
                     _misSolicitudesState.value = UiState.Error(
                         message = "Error ${response.code()}: ${response.message()}"
@@ -165,10 +170,10 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Crea solicitud de INGRESO
-     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/solicitar-ingreso
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones
      * Patrón local-first: guarda local → envía backend → elimina si OK
      */
-    fun solicitarIngreso(request: SolicitudIngresoRequest) {
+    fun solicitarIngreso(sku: String, cantidad: Int, ubicacionDestino: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
@@ -176,17 +181,26 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                 // 1. Guardar localmente
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "INGRESO",
-                    sku = request.sku,
-                    cantidad = request.cantidad,
-                    ubicacionDestino = request.ubicacionDestino,
-                    motivo = request.motivo,
+                    sku = sku,
+                    cantidad = cantidad,
+                    motivo = motivo,
+                    idUbicacionOrigen = null,
+                    idUbicacionDestino = null, // TODO: Convertir ubicacionDestino (String) a ID
                     timestamp = System.currentTimeMillis()
                 )
                 val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
 
                 try {
                     // 2. Enviar al backend
-                    val response = apiService.solicitarIngreso(request)
+                    val request = NetworkAprobacionRequest(
+                        tipoMovimiento = "INGRESO",
+                        sku = sku,
+                        cantidad = cantidad,
+                        motivo = motivo,
+                        idUbicacionOrigen = null,
+                        idUbicacionDestino = null // TODO: Convertir ubicacionDestino a ID
+                    )
+                    val response = apiService.createAprobacion(request)
                     
                     if (response.isSuccessful && response.code() == 200) {
                         // 3. Eliminar local si éxito
@@ -213,25 +227,34 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Crea solicitud de EGRESO
-     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/solicitar-egreso
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones
      */
-    fun solicitarEgreso(request: SolicitudEgresoRequest) {
+    fun solicitarEgreso(sku: String, cantidad: Int, ubicacionOrigen: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
 
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "EGRESO",
-                    sku = request.sku,
-                    cantidad = request.cantidad,
-                    ubicacionOrigen = request.ubicacionOrigen,
-                    motivo = request.motivo,
+                    sku = sku,
+                    cantidad = cantidad,
+                    motivo = motivo,
+                    idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen (String) a ID
+                    idUbicacionDestino = null,
                     timestamp = System.currentTimeMillis()
                 )
                 val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
 
                 try {
-                    val response = apiService.solicitarEgreso(request)
+                    val request = NetworkAprobacionRequest(
+                        tipoMovimiento = "EGRESO",
+                        sku = sku,
+                        cantidad = cantidad,
+                        motivo = motivo,
+                        idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen a ID
+                        idUbicacionDestino = null
+                    )
+                    val response = apiService.createAprobacion(request)
                     
                     if (response.isSuccessful && response.code() == 200) {
                         solicitudMovimientoDao.deleteById(localId)
@@ -257,26 +280,34 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Crea solicitud de REUBICACION
-     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/solicitar-reubicacion
+     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones
      */
-    fun solicitarReubicacion(request: SolicitudReubicacionRequest) {
+    fun solicitarReubicacion(sku: String, cantidad: Int, ubicacionOrigen: String, ubicacionDestino: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _createSolicitudState.value = UiState.Loading
 
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "REUBICACION",
-                    sku = request.sku,
-                    cantidad = request.cantidad,
-                    ubicacionOrigen = request.ubicacionOrigen,
-                    ubicacionDestino = request.ubicacionDestino,
-                    motivo = request.motivo,
+                    sku = sku,
+                    cantidad = cantidad,
+                    motivo = motivo,
+                    idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen (String) a ID
+                    idUbicacionDestino = null, // TODO: Convertir ubicacionDestino (String) a ID
                     timestamp = System.currentTimeMillis()
                 )
                 val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
 
                 try {
-                    val response = apiService.solicitarReubicacion(request)
+                    val request = NetworkAprobacionRequest(
+                        tipoMovimiento = "REUBICACION",
+                        sku = sku,
+                        cantidad = cantidad,
+                        motivo = motivo,
+                        idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen a ID
+                        idUbicacionDestino = null // TODO: Convertir ubicacionDestino a ID
+                    )
+                    val response = apiService.createAprobacion(request)
                     
                     if (response.isSuccessful && response.code() == 200) {
                         solicitudMovimientoDao.deleteById(localId)
@@ -304,14 +335,14 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Aprueba una solicitud
-     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/{id}/aprobar
+     * PUT http://fotomarwms.ddns.net:8085/api/aprobaciones/{id}/aprobar
      */
-    fun aprobarSolicitud(id: Int, comentario: String? = null) {
+    fun aprobarSolicitud(id: Int, observaciones: String? = null) {
         viewModelScope.launch {
             try {
                 _respuestaState.value = UiState.Loading
 
-                val request = AprobarRequest(comentario = comentario)
+                val request = AprobarRequest(observaciones = observaciones)
                 val response = apiService.aprobarSolicitud(id, request)
                 
                 if (response.isSuccessful && response.code() == 200) {
@@ -334,14 +365,14 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Rechaza una solicitud
-     * POST http://fotomarwms.ddns.net:8085/api/aprobaciones/{id}/rechazar
+     * PUT http://fotomarwms.ddns.net:8085/api/aprobaciones/{id}/rechazar
      */
-    fun rechazarSolicitud(id: Int, motivo: String) {
+    fun rechazarSolicitud(id: Int, observaciones: String) {
         viewModelScope.launch {
             try {
                 _respuestaState.value = UiState.Loading
 
-                val request = RechazarRequest(motivo = motivo)
+                val request = RechazarRequest(observaciones = observaciones)
                 val response = apiService.rechazarSolicitud(id, request)
                 
                 if (response.isSuccessful && response.code() == 200) {
@@ -380,5 +411,37 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearRespuestaState() {
         _respuestaState.value = UiState.Idle
+    }
+
+    fun clearEstadoFilter() {
+        _estadoFiltro.value = null
+        getAllAprobaciones()
+    }
+
+    // ========== CONVERSIÓN ==========
+
+    /**
+     * Convierte AprobacionResponse a modelo de dominio
+     */
+    private fun AprobacionResponse.toDomainModel(): Aprobacion {
+        return Aprobacion(
+            id = this.id,
+            tipoMovimiento = TipoMovimiento.valueOf(this.tipoMovimiento),
+            sku = this.sku,
+            cantidad = this.cantidad,
+            motivo = this.motivo,
+            estado = EstadoAprobacion.valueOf(this.estado),
+            solicitante = "", // TODO: El backend debería devolver esto
+            idSolicitante = 0, // TODO: El backend debería devolver esto
+            aprobador = null,
+            idAprobador = null,
+            observaciones = this.observaciones,
+            fechaSolicitud = this.fechaSolicitud,
+            fechaRespuesta = null, // TODO: El backend debería devolver esto
+            idUbicacionOrigen = this.idUbicacionOrigen,
+            idUbicacionDestino = this.idUbicacionDestino,
+            ubicacionOrigen = null, // TODO: Convertir ID a código
+            ubicacionDestino = null // TODO: Convertir ID a código
+        )
     }
 }
