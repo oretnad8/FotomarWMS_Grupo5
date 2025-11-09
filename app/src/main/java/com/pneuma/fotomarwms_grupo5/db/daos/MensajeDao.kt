@@ -16,6 +16,10 @@ interface MensajeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(mensaje: MensajeLocal): Long
 
+    // Alias para compatibilidad con código existente
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertarMensajePendiente(mensaje: MensajeLocal): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(mensajes: List<MensajeLocal>)
 

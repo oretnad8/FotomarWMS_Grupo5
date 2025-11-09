@@ -4,10 +4,10 @@ import android.util.Log
 import com.pneuma.fotomarwms_grupo5.db.daos.ProductoDao
 import com.pneuma.fotomarwms_grupo5.db.entities.ProductoLocal
 import com.pneuma.fotomarwms_grupo5.models.Producto
-import com.pneuma.fotomarwms_grupo5.models.ProductoRequest
 import com.pneuma.fotomarwms_grupo5.models.ProductoUbicacion
 import com.pneuma.fotomarwms_grupo5.network.ProductosApiService
 import com.pneuma.fotomarwms_grupo5.network.ProductoResponse
+import com.pneuma.fotomarwms_grupo5.network.ProductoRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

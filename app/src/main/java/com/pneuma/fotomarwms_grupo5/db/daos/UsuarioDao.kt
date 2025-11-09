@@ -16,6 +16,10 @@ interface UsuarioDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(usuario: UsuarioLocal): Long
 
+    // Alias para compatibilidad con código existente
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertarUsuarioPendiente(usuario: UsuarioLocal): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(usuarios: List<UsuarioLocal>)
 

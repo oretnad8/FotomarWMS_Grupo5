@@ -16,6 +16,10 @@ interface ConteoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(conteo: ConteoLocal): Long
 
+    // Alias para compatibilidad con código existente
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertarConteoPendiente(conteo: ConteoLocal): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(conteos: List<ConteoLocal>)
 

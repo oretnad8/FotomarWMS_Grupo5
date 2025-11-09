@@ -56,17 +56,19 @@ class UbicacionRepository(
             if (response.isSuccessful && response.body() != null) {
                 val ubicaciones = response.body()!!.map { 
                     Ubicacion(
-                        codigo = it.codigo,
-                        piso = it.piso,
-                        numero = it.numero
+                        idUbicacion = 0, // No viene del backend
+                        codigoUbicacion = it.codigo,
+                        piso = it.piso.firstOrNull() ?: 'A',
+                        numero = it.numero,
+                        productos = null
                     )
                 }
                 
                 // Actualizar cache
                 val ubicacionesLocal = ubicaciones.map {
                     UbicacionLocal(
-                        codigo = it.codigo,
-                        piso = it.piso,
+                        codigo = it.codigoUbicacion,
+                        piso = it.piso.toString(),
                         numero = it.numero
                     )
                 }
@@ -92,9 +94,11 @@ class UbicacionRepository(
             if (response.isSuccessful && response.body() != null) {
                 val ub = response.body()!!
                 val ubicacion = Ubicacion(
-                    codigo = ub.codigo,
-                    piso = ub.piso,
-                    numero = ub.numero
+                    idUbicacion = 0,
+                    codigoUbicacion = ub.codigo,
+                    piso = ub.piso.firstOrNull() ?: 'A',
+                    numero = ub.numero,
+                    productos = null
                 )
                 Result.success(ubicacion)
             } else {

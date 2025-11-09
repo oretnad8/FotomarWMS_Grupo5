@@ -16,6 +16,10 @@ interface SolicitudMovimientoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(solicitud: SolicitudMovimientoLocal): Long
 
+    // Alias para compatibilidad con código existente
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertarSolicitud(solicitud: SolicitudMovimientoLocal): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(solicitudes: List<SolicitudMovimientoLocal>)
 

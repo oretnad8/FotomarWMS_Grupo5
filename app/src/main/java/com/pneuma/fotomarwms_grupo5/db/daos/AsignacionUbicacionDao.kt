@@ -16,6 +16,10 @@ interface AsignacionUbicacionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(asignacion: AsignacionUbicacionLocal): Long
 
+    // Alias para compatibilidad con código existente
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertarAsignacionPendiente(asignacion: AsignacionUbicacionLocal): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(asignaciones: List<AsignacionUbicacionLocal>)
 
