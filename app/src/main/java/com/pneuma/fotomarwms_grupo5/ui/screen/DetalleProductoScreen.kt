@@ -12,44 +12,108 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.Producto
 import com.pneuma.fotomarwms_grupo5.models.UiState
+import com.pneuma.fotomarwms_grupo5.network.ProductoRequest
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 import com.pneuma.fotomarwms_grupo5.viewmodels.ProductoViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.UbicacionViewModel
 
 /**
  * Pantalla de Detalle de Producto
+ * CON FUNCIONALIDAD DE EDICIÓN Y ESCÁNER
  *
- * Muestra información completa del producto:
- * - SKU, descripción, stock
- * - Códigos de barras (individual y LPN)
- * - Fecha de vencimiento (si aplica)
- * - Lista de ubicaciones donde se encuentra
- * - Historial de movimientos (TODO)
+ * Características:
+ * - Ver detalle completo del producto
+ * - Editar código de barras individual (manual + escáner)
+ * - Editar LPN (manual + escáner)
+ * - Asignar a ubicaciones (diálogo + pantalla)
+ * - Actualizar usando microservicio real
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalleProductoScreen(
     sku: String,
     productoViewModel: ProductoViewModel,
+    ubicacionViewModel: UbicacionViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToUbicacion: (String) -> Unit,
+    onNavigateToAsignarUbicacion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Estados
     val productoDetailState by productoViewModel.productoDetailState.collectAsStateWithLifecycle()
     val selectedProducto by productoViewModel.selectedProducto.collectAsStateWithLifecycle()
+    val updateState by productoViewModel.updateProductoState.collectAsStateWithLifecycle()
+
+    // Estados de edición
+    var isEditing by remember { mutableStateOf(false) }
+    var editedCodigoBarras by remember { mutableStateOf("") }
+    var editedLpn by remember { mutableStateOf("") }
+
+    // Estados de escáner
+    var showBarcodeScannerForIndividual by remember { mutableStateOf(false) }
+    var showBarcodeScannerForLPN by remember { mutableStateOf(false) }
+
+    // Estados de diálogo
+    var showAsignarDialog by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
     // Cargar detalle del producto al iniciar
     LaunchedEffect(sku) {
         productoViewModel.getProductoDetail(sku)
     }
 
+    // Inicializar valores de edición cuando se carga el producto
+    LaunchedEffect(selectedProducto) {
+        selectedProducto?.let { producto ->
+            editedCodigoBarras = producto.codigoBarrasIndividual ?: ""
+            editedLpn = producto.lpn ?: ""
+        }
+    }
+
+    // Observar estado de actualización
+    LaunchedEffect(updateState) {
+        when (updateState) {
+            is UiState.Success -> {
+                showSuccessDialog = true
+                isEditing = false
+                productoViewModel.clearUpdateState()
+                // Recargar producto
+                productoViewModel.getProductoDetail(sku)
+            }
+            is UiState.Error -> {
+                errorMessage = (updateState as UiState.Error).message
+                showErrorDialog = true
+                productoViewModel.clearUpdateState()
+            }
+            else -> {}
+        }
+    }
+
     Scaffold(
         topBar = {
             BackTopBar(
-                title = "Detalle del Producto",
-                onBackClick = onNavigateBack
+                title = if (isEditing) "Editar Producto" else "Detalle del Producto",
+                onBackClick = {
+                    if (isEditing) {
+                        isEditing = false
+                    } else {
+                        onNavigateBack()
+                    }
+                }
             )
+        },
+        floatingActionButton = {
+            if (!isEditing && selectedProducto != null) {
+                FloatingActionButton(
+                    onClick = { isEditing = true }
+                ) {
+                    Icon(Icons.Default.Edit, "Editar")
+                }
+            }
         }
     ) { paddingValues ->
         Box(
@@ -102,7 +166,7 @@ fun DetalleProductoScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // ========== CÓDIGOS ==========
+                        // ========== CÓDIGOS (CON EDICIÓN Y ESCÁNER) ==========
                         Card(
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -110,7 +174,8 @@ fun DetalleProductoScreen(
                                 modifier = Modifier.padding(16.dp)
                             ) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.QrCode,
@@ -127,23 +192,130 @@ fun DetalleProductoScreen(
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                // Código de barras individual
-                                DetailRow(
-                                    label = "Código Individual",
-                                    value = producto.codigoBarrasIndividual ?: "No disponible"
-                                )
-
-                                // LPN
-                                DetailRow(
-                                    label = "LPN (Código de Caja)",
-                                    value = producto.lpn ?: "No disponible"
-                                )
-
-                                if (producto.lpnDesc != null) {
-                                    DetailRow(
-                                        label = "Descripción LPN",
-                                        value = producto.lpnDesc
+                                if (isEditing) {
+                                    // MODO EDICIÓN: Código de barras individual
+                                    Text(
+                                        text = "Código Individual",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = editedCodigoBarras,
+                                            onValueChange = { editedCodigoBarras = it },
+                                            modifier = Modifier.weight(1f),
+                                            placeholder = { Text("Escanear o ingresar") },
+                                            singleLine = true
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        IconButton(
+                                            onClick = { showBarcodeScannerForIndividual = true }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CameraAlt,
+                                                contentDescription = "Escanear código",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    // MODO EDICIÓN: LPN
+                                    Text(
+                                        text = "LPN (Código de Caja)",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = editedLpn,
+                                            onValueChange = { editedLpn = it },
+                                            modifier = Modifier.weight(1f),
+                                            placeholder = { Text("Escanear o ingresar") },
+                                            singleLine = true
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        IconButton(
+                                            onClick = { showBarcodeScannerForLPN = true }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CameraAlt,
+                                                contentDescription = "Escanear LPN",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    // Botones de acción
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                isEditing = false
+                                                editedCodigoBarras = producto.codigoBarrasIndividual ?: ""
+                                                editedLpn = producto.lpn ?: ""
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Cancelar")
+                                        }
+                                        Button(
+                                            onClick = {
+                                                // Actualizar producto
+                                                val request = ProductoRequest(
+                                                    sku = producto.sku,
+                                                    descripcion = producto.descripcion,
+                                                    stock = producto.stock,
+                                                    codigoBarrasIndividual = editedCodigoBarras.ifBlank { null },
+                                                    lpn = editedLpn.ifBlank { null },
+                                                    lpnDesc = producto.lpnDesc,
+                                                    fechaVencimiento = producto.fechaVencimiento
+                                                )
+                                                productoViewModel.updateProducto(producto.sku, request)
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            enabled = updateState !is UiState.Loading
+                                        ) {
+                                            if (updateState is UiState.Loading) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(20.dp),
+                                                    strokeWidth = 2.dp
+                                                )
+                                            } else {
+                                                Text("Guardar")
+                                            }
+                                        }
+                                    }
+
+                                } else {
+                                    // MODO VISTA: Solo mostrar
+                                    DetailRow(
+                                        label = "Código Individual",
+                                        value = producto.codigoBarrasIndividual ?: "No disponible"
+                                    )
+
+                                    DetailRow(
+                                        label = "LPN (Código de Caja)",
+                                        value = producto.lpn ?: "No disponible"
+                                    )
+
+                                    if (producto.lpnDesc != null) {
+                                        DetailRow(
+                                            label = "Descripción LPN",
+                                            value = producto.lpnDesc
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -214,19 +386,45 @@ fun DetalleProductoScreen(
                                 modifier = Modifier.padding(16.dp)
                             ) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Ubicaciones",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Ubicaciones",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    // Botón para asignar ubicación
+                                    Row {
+                                        IconButton(
+                                            onClick = { showAsignarDialog = true }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = "Asignar ubicación",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { onNavigateToAsignarUbicacion(producto.sku) }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.OpenInNew,
+                                                contentDescription = "Gestionar ubicaciones",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -257,20 +455,19 @@ fun DetalleProductoScreen(
                                                 Column {
                                                     Text(
                                                         text = ubicacion.codigoUbicacion,
-                                                        style = MaterialTheme.typography.titleMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.primary
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                        fontWeight = FontWeight.Bold
                                                     )
                                                     Text(
-                                                        text = "Cantidad: ${ubicacion.cantidadEnUbicacion}",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        modifier = Modifier.padding(top = 4.dp)
+                                                        text = "Cantidad: ${ubicacion.cantidad}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                 }
-
                                                 Icon(
                                                     imageVector = Icons.Default.ChevronRight,
-                                                    contentDescription = "Ver ubicación"
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
                                         }
@@ -279,58 +476,103 @@ fun DetalleProductoScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // ========== ACCIONES ==========
-                        // TODO: Agregar botones de acción según el rol
-                        // - Jefe: Editar, Eliminar, Registrar movimiento
-                        // - Operador: Solicitar movimiento
+                        Spacer(modifier = Modifier.height(80.dp)) // Espacio para FAB
                     }
                 }
 
                 is UiState.Error -> {
                     ErrorState(
                         message = state.message,
-                        onRetry = {
-                            productoViewModel.getProductoDetail(sku)
-                        }
+                        onRetry = { productoViewModel.getProductoDetail(sku) }
                     )
                 }
 
                 is UiState.Idle -> {
-                    // No mostrar nada en estado Idle
+                    // Estado inicial
                 }
             }
         }
     }
-}
 
-/**
- * Fila de detalle (label + value)
- */
-@Composable
-private fun DetailRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
+    // ========== ESCÁNER DE CÓDIGO INDIVIDUAL ==========
+    if (showBarcodeScannerForIndividual) {
+        BarcodeScanner(
+            onBarcodeScanned = { code ->
+                editedCodigoBarras = code
+                showBarcodeScannerForIndividual = false
+            },
+            onDismiss = {
+                showBarcodeScannerForIndividual = false
+            }
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
+    }
+
+    // ========== ESCÁNER DE LPN ==========
+    if (showBarcodeScannerForLPN) {
+        BarcodeScanner(
+            onBarcodeScanned = { code ->
+                editedLpn = code
+                showBarcodeScannerForLPN = false
+            },
+            onDismiss = {
+                showBarcodeScannerForLPN = false
+            }
+        )
+    }
+
+    // ========== DIÁLOGO DE ASIGNAR UBICACIÓN ==========
+    if (showAsignarDialog && selectedProducto != null) {
+        AsignarUbicacionDialog(
+            producto = selectedProducto!!,
+            ubicacionViewModel = ubicacionViewModel,
+            onDismiss = { showAsignarDialog = false },
+            onSuccess = {
+                showAsignarDialog = false
+                // Recargar producto para ver nuevas ubicaciones
+                productoViewModel.getProductoDetail(sku)
+            }
+        )
+    }
+
+    // ========== DIÁLOGO DE ÉXITO ==========
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = { Text("Producto Actualizado") },
+            text = { Text("Los cambios se han guardado correctamente.") },
+            confirmButton = {
+                TextButton(onClick = { showSuccessDialog = false }) {
+                    Text("Aceptar")
+                }
+            }
+        )
+    }
+
+    // ========== DIÁLOGO DE ERROR ==========
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Error") },
+            text = { Text(errorMessage) },
+            confirmButton = {
+                TextButton(onClick = { showErrorDialog = false }) {
+                    Text("Aceptar")
+                }
+            }
         )
     }
 }
