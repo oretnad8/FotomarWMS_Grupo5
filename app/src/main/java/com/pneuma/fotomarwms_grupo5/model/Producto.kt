@@ -22,7 +22,7 @@ data class Producto(
 data class ProductoUbicacion(
     val idUbicacion: Int,
     val codigoUbicacion: String, // ej: A-12
-    val cantidadEnUbicacion: Int
+    val cantidad: Int
 )
 
 /**

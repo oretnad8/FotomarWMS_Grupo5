@@ -62,15 +62,46 @@ data class ProductoResponse(
 data class ProductoUbicacionResponse(
     val idUbicacion: Int,
     val codigoUbicacion: String,
-    val cantidadEnUbicacion: Int
+    val cantidad: Int
 )
 
 // ========== UBICACION MODELS ==========
 
 data class UbicacionResponse(
-    val codigo: String,
+    // La anotación @SerializedName le dice a Gson cómo mapear el JSON a tu variable.
+    // Es la forma más segura de evitar errores de nombres.
+    @SerializedName("idUbicacion")
+    val idUbicacion: Int,
+
+    @SerializedName("codigoUbicacion")
+    val codigoUbicacion: String, // El campo ahora coincide con el JSON
+
+    @SerializedName("piso")
     val piso: String,
-    val numero: Int
+
+    @SerializedName("numero")
+    val numero: Int,
+
+    // Es buena práctica definir todos los campos que vienen en el JSON
+    @SerializedName("productos")
+    val productos: List<ProductoEnUbicacion>?,
+
+    @SerializedName("totalProductos")
+    val totalProductos: Int,
+
+    @SerializedName("cantidadTotal")
+    val cantidadTotal: Int
+)
+
+// NUEVA data class para los productos anidados dentro de una ubicación.
+// Esto es necesario para que Gson pueda parsear la lista "productos".
+data class ProductoEnUbicacion(
+    @SerializedName("sku")
+    val sku: String,
+    @SerializedName("descripcion")
+    val descripcion: String,
+    @SerializedName("cantidadEnUbicacion")
+    val cantidadEnUbicacion: Int
 )
 
 data class AsignarUbicacionRequest(

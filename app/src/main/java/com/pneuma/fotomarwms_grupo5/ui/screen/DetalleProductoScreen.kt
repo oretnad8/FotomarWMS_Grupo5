@@ -498,7 +498,7 @@ fun DetalleProductoScreen(
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                     Text(
-                                                        text = "Cantidad: ${ubicacion.cantidadEnUbicacion}",
+                                                        text = "Cantidad: ${ubicacion.cantidad}",
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
@@ -565,7 +565,12 @@ fun DetalleProductoScreen(
             sku = selectedProducto!!.sku,
             onDismiss = { showAsignarDialog = false },
             onConfirm = { codigoUbicacion, cantidad ->
-                ubicacionViewModel.asignarProducto(selectedProducto!!.sku, codigoUbicacion, cantidad)
+                ubicacionViewModel.asignarProducto(
+                    productoViewModel = productoViewModel,
+                    sku = selectedProducto!!.sku,
+                    codigoUbicacion = codigoUbicacion,
+                    cantidad = cantidad
+                )
                 showAsignarDialog = false
                 // Recargar producto para ver nuevas ubicaciones
                 productoViewModel.getProductoDetail(sku)

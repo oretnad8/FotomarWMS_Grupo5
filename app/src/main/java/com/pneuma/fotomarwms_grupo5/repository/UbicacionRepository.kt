@@ -1,6 +1,8 @@
 package com.pneuma.fotomarwms_grupo5.repository
 
 import android.util.Log
+import androidx.compose.foundation.layout.size
+import kotlinx.coroutines.flow.first
 import com.pneuma.fotomarwms_grupo5.db.daos.AsignacionUbicacionDao
 import com.pneuma.fotomarwms_grupo5.db.daos.UbicacionDao
 import com.pneuma.fotomarwms_grupo5.db.entities.AsignacionUbicacionLocal
@@ -37,33 +39,39 @@ class UbicacionRepository(
                 } else {
                     ubicacionDao.getAll()
                 }
-                
-                // Si hay cache, usarlo
-                var hasCachedData = false
-                cached.collect { lista ->
-                    if (lista.isNotEmpty()) {
-                        hasCachedData = true
+
+                // 2. Usamos .first() para leer el valor actual del Flow sin bloquear.
+                val cachedData = cached.first()
+
+                // 3. Si el caché tiene datos, los devolvemos y terminamos la función aquí mismo.
+                if (cachedData.isNotEmpty()) {
+                    Log.d(TAG, "Cargando ${cachedData.size} ubicaciones desde el caché.")
+                    val ubicacionesFromCache = cachedData.map { local ->
+                        Ubicacion(
+                            idUbicacion = 0, // Asumimos que la entidad local no tiene el ID correcto
+                            codigoUbicacion = local.codigo,
+                            piso = local.piso.firstOrNull() ?: ' ',
+                            numero = local.numero,
+                            productos = null
+                        )
                     }
+                    return Result.success(ubicacionesFromCache)
                 }
-                
-                if (hasCachedData) {
-                    Log.d(TAG, "Usando ubicaciones del cache")
-                }
+                // --------------------------
             }
 
-            // Obtener del backend
+            // Obtener del backend (Este código solo se ejecuta si el caché está vacío o se fuerza el refresco)
             val response = apiService.getUbicaciones(piso)
             if (response.isSuccessful && response.body() != null) {
-                val ubicaciones = response.body()!!.map { 
-                    Ubicacion(
-                        idUbicacion = 0, // No viene del backend
-                        codigoUbicacion = it.codigo,
-                        piso = it.piso.firstOrNull() ?: 'A',
-                        numero = it.numero,
-                        productos = null
+                val ubicaciones = response.body()!!.map { apiUbicacion -> // apiUbicacion ahora es tu nueva UbicacionResponse
+                    Ubicacion(        idUbicacion = apiUbicacion.idUbicacion,
+                        codigoUbicacion = apiUbicacion.codigoUbicacion, // ¡Ahora sí existe y no es nulo!
+                        piso = apiUbicacion.piso.firstOrNull() ?: ' ',
+                        numero = apiUbicacion.numero,
+                        productos = null // Mantenemos esto simple por ahora
                     )
                 }
-                
+
                 // Actualizar cache
                 val ubicacionesLocal = ubicaciones.map {
                     UbicacionLocal(
@@ -73,7 +81,7 @@ class UbicacionRepository(
                     )
                 }
                 ubicacionDao.insertAll(ubicacionesLocal)
-                
+
                 Log.d(TAG, "Ubicaciones actualizadas desde backend: ${ubicaciones.size}")
                 Result.success(ubicaciones)
             } else {
@@ -95,7 +103,8 @@ class UbicacionRepository(
                 val ub = response.body()!!
                 val ubicacion = Ubicacion(
                     idUbicacion = 0,
-                    codigoUbicacion = ub.codigo,
+                    // --- CÓDIGO CORREGIDO ---
+                    codigoUbicacion = ub.codigoUbicacion,
                     piso = ub.piso.firstOrNull() ?: 'A',
                     numero = ub.numero,
                     productos = null

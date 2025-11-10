@@ -52,14 +52,14 @@ class UbicacionViewModel(
                 val result = ubicacionRepository.getUbicaciones(piso = null, forceRefresh = forceRefresh)
                 
                 _ubicacionesState.value = if (result.isSuccess) {
-                    UiState.Success(result.getOrNull()!!)
+                    UiState.Success(result.getOrNull() ?: emptyList())
                 } else {
                     UiState.Error(
                         message = result.exceptionOrNull()?.message ?: "Error al obtener ubicaciones"
                     )
                 }
 
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 _ubicacionesState.value = UiState.Error(
                     message = "Error al obtener ubicaciones: ${e.message}"
                 )
@@ -84,14 +84,14 @@ class UbicacionViewModel(
                 )
                 
                 _ubicacionesState.value = if (result.isSuccess) {
-                    UiState.Success(result.getOrNull()!!)
+                    UiState.Success(result.getOrNull() ?: emptyList())
                 } else {
                     UiState.Error(
                         message = result.exceptionOrNull()?.message ?: "Error al obtener ubicaciones"
                     )
                 }
 
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 _ubicacionesState.value = UiState.Error(
                     message = "Error al obtener ubicaciones del piso ${piso.codigo}: ${e.message}"
                 )
@@ -139,7 +139,12 @@ class UbicacionViewModel(
      * @param codigoUbicacion Código de la ubicación (ej: A-12)
      * @param cantidad Cantidad a asignar
      */
-    fun asignarProducto(sku: String, codigoUbicacion: String, cantidad: Int) {
+    fun asignarProducto(
+        productoViewModel: ProductoViewModel,
+        sku: String,
+        codigoUbicacion: String,
+        cantidad: Int
+    ){
         viewModelScope.launch {
             try {
                 _asignacionState.value = UiState.Loading
@@ -148,6 +153,8 @@ class UbicacionViewModel(
                 
                 if (result.isSuccess) {
                     _asignacionState.value = UiState.Success(true)
+                    // Notificamos al otro ViewModel que debe actualizarse.
+                    productoViewModel.refreshProductoDetail()
                     // Recargar detalle de la ubicación si está seleccionada
                     if (_selectedUbicacion.value?.codigoUbicacion == codigoUbicacion) {
                         getUbicacionDetail(codigoUbicacion)

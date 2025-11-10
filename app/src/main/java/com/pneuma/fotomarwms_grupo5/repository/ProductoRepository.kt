@@ -252,7 +252,7 @@ class ProductoRepository(
                 ProductoUbicacion(
                     idUbicacion = ubicacion.idUbicacion,
                     codigoUbicacion = ubicacion.codigoUbicacion,
-                    cantidadEnUbicacion = ubicacion.cantidadEnUbicacion
+                    cantidad = ubicacion.cantidad
                 )
             }
         )
