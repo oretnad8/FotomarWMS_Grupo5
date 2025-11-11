@@ -2,7 +2,6 @@ package com.pneuma.fotomarwms_grupo5.repository
 
 import android.util.Log
 import androidx.compose.foundation.layout.size
-import kotlinx.coroutines.flow.first
 import com.pneuma.fotomarwms_grupo5.db.daos.AsignacionUbicacionDao
 import com.pneuma.fotomarwms_grupo5.db.daos.UbicacionDao
 import com.pneuma.fotomarwms_grupo5.db.entities.AsignacionUbicacionLocal
@@ -11,6 +10,7 @@ import com.pneuma.fotomarwms_grupo5.models.Ubicacion
 import com.pneuma.fotomarwms_grupo5.network.AsignarUbicacionRequest
 import com.pneuma.fotomarwms_grupo5.network.UbicacionesApiService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /**
  * Repositorio para ubicaciones con patrón local-first
@@ -40,35 +40,31 @@ class UbicacionRepository(
                     ubicacionDao.getAll()
                 }
 
-                // 2. Usamos .first() para leer el valor actual del Flow sin bloquear.
                 val cachedData = cached.first()
 
-                // 3. Si el caché tiene datos, los devolvemos y terminamos la función aquí mismo.
                 if (cachedData.isNotEmpty()) {
                     Log.d(TAG, "Cargando ${cachedData.size} ubicaciones desde el caché.")
-                    val ubicacionesFromCache = cachedData.map { local ->
-                        Ubicacion(
-                            idUbicacion = 0, // Asumimos que la entidad local no tiene el ID correcto
-                            codigoUbicacion = local.codigo,
-                            piso = local.piso.firstOrNull() ?: ' ',
-                            numero = local.numero,
-                            productos = null
-                        )
-                    }
-                    return Result.success(ubicacionesFromCache)
+                    // Forzar la actualización desde la red para obtener los detalles del producto
+                     return getUbicaciones(piso, forceRefresh = true)
                 }
-                // --------------------------
             }
 
             // Obtener del backend (Este código solo se ejecuta si el caché está vacío o se fuerza el refresco)
             val response = apiService.getUbicaciones(piso)
             if (response.isSuccessful && response.body() != null) {
-                val ubicaciones = response.body()!!.map { apiUbicacion -> // apiUbicacion ahora es tu nueva UbicacionResponse
-                    Ubicacion(        idUbicacion = apiUbicacion.idUbicacion,
-                        codigoUbicacion = apiUbicacion.codigoUbicacion, // ¡Ahora sí existe y no es nulo!
+                val ubicaciones = response.body()!!.map { apiUbicacion ->
+                    Ubicacion(
+                        idUbicacion = apiUbicacion.idUbicacion,
+                        codigoUbicacion = apiUbicacion.codigoUbicacion,
                         piso = apiUbicacion.piso.firstOrNull() ?: ' ',
                         numero = apiUbicacion.numero,
-                        productos = null // Mantenemos esto simple por ahora
+                        productos = apiUbicacion.productos?.map {
+                            com.pneuma.fotomarwms_grupo5.models.ProductoEnUbicacion(
+                                sku = it.sku,
+                                descripcion = it.descripcion,
+                                cantidad = it.cantidadEnUbicacion
+                            )
+                        }
                     )
                 }
 
@@ -102,12 +98,17 @@ class UbicacionRepository(
             if (response.isSuccessful && response.body() != null) {
                 val ub = response.body()!!
                 val ubicacion = Ubicacion(
-                    idUbicacion = 0,
-                    // --- CÓDIGO CORREGIDO ---
+                    idUbicacion = ub.idUbicacion,
                     codigoUbicacion = ub.codigoUbicacion,
                     piso = ub.piso.firstOrNull() ?: 'A',
                     numero = ub.numero,
-                    productos = null
+                    productos = ub.productos?.map {
+                        com.pneuma.fotomarwms_grupo5.models.ProductoEnUbicacion(
+                            sku = it.sku,
+                            descripcion = it.descripcion,
+                            cantidad = it.cantidadEnUbicacion
+                        )
+                    }
                 )
                 Result.success(ubicacion)
             } else {

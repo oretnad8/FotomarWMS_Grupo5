@@ -251,27 +251,23 @@ fun FotomarWMSApp() {
             }
 
             // Detalle de ubicación
-            // Detalle de ubicación (versión correcta)
             composable(
                 route = "detalle_ubicacion/{codigo}",
                 arguments = listOf(navArgument("codigo") { type = NavType.StringType })
             ) { backStackEntry ->
                 val codigo = backStackEntry.arguments?.getString("codigo") ?: return@composable
-                val ubicacionVM: UbicacionViewModel = viewModel()  // o hiltViewModel()
-
                 DetalleUbicacionScreen(
                     codigo = codigo,
-                    ubicacionViewModel = ubicacionVM,
+                    ubicacionViewModel = ubicacionViewModel,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToProducto = { sku ->
                         navController.navigate("detalle_producto/$sku")
                     },
                     onNavigateToConteo = { idUbicacion ->
-                        navController.navigate("conteo_ubicacion/$idUbicacion")   // 👈 AQUÍ SE NAVEGA
+                        navController.navigate("conteo_ubicacion/$idUbicacion")
                     }
                 )
             }
-
 
             // ========== MOVIMIENTOS ==========
 
@@ -362,12 +358,9 @@ fun FotomarWMSApp() {
 
             // Enviar mensaje (Jefe/Supervisor)
             composable(Screen.EnviarMensaje.route) {
-                val mensajeVM: MensajeViewModel = viewModel()   // o hiltViewModel()
-                val usuarioVM: UsuarioViewModel = viewModel()   // o hiltViewModel()
-
                 EnviarMensajeScreen(
-                    mensajeViewModel = mensajeVM,
-                    usuarioViewModel = usuarioVM,
+                    mensajeViewModel = mensajeViewModel,
+                    usuarioViewModel = usuarioViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -396,13 +389,10 @@ fun FotomarWMSApp() {
                 )
             ) { backStackEntry ->
                 val idUbicacion = backStackEntry.arguments?.getInt("idUbicacion") ?: return@composable
-                val ubicacionVM: UbicacionViewModel = viewModel()   // o hiltViewModel()
-                val inventarioVM: InventarioViewModel = viewModel() // o hiltViewModel()
-
                 ConteoUbicacionScreen(
                     idUbicacion = idUbicacion,
-                    ubicacionViewModel = ubicacionVM,
-                    inventarioViewModel = inventarioVM,
+                    ubicacionViewModel = ubicacionViewModel,
+                    inventarioViewModel = inventarioViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -453,28 +443,6 @@ fun FotomarWMSApp() {
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            //CONTEO UBICACION
-            composable(
-                route = "detalle_ubicacion/{codigo}",
-                arguments = listOf(navArgument("codigo") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val codigo = backStackEntry.arguments?.getString("codigo") ?: return@composable
-                val ubicacionVM: UbicacionViewModel = viewModel()  // o hiltViewModel()
-
-                DetalleUbicacionScreen(
-                    codigo = codigo,
-                    ubicacionViewModel = ubicacionVM,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToProducto = { sku ->
-                        navController.navigate("detalle_producto/$sku")
-                    },
-                    onNavigateToConteo = { idUbicacion ->
-                        navController.navigate("conteo_ubicacion/$idUbicacion")   // 👈 AQUÍ SE NAVEGA
-                    }
-                )
-            }
-
-
         }
 
     }

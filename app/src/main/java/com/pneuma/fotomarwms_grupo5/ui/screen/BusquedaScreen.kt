@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.Producto
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
@@ -39,6 +40,7 @@ fun BusquedaScreen(
     // Estados
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val searchState by productoViewModel.searchState.collectAsStateWithLifecycle()
+    val productoDetailState by productoViewModel.productoDetailState.collectAsStateWithLifecycle()
     val searchQuery by productoViewModel.searchQuery.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -47,6 +49,16 @@ fun BusquedaScreen(
     var localSearchQuery by remember { mutableStateOf("") }
     var showScanDialog by remember { mutableStateOf(false) }
     var showScanner by remember { mutableStateOf(false) }
+
+    // Efecto para navegar cuando se encuentra un solo producto por código de barras
+    LaunchedEffect(productoDetailState) {
+        if (productoDetailState is UiState.Success) {
+            val producto = (productoDetailState as UiState.Success<Producto>).data
+            onNavigateToDetail(producto.sku)
+            // Limpiar el estado para evitar la re-navegación si la pantalla se recompone
+            productoViewModel.clearSelectedProducto()
+        }
+    }
 
     // Drawer con menú lateral
     ModalNavigationDrawer(
@@ -185,70 +197,89 @@ fun BusquedaScreen(
                         .fillMaxSize()
                         .weight(1f)
                 ) {
-                    when (val state = searchState) {
-                        is UiState.Idle -> {
-                            EmptyState(
-                                icon = Icons.Default.Search,
-                                title = "Busca un producto",
-                                message = "Usa la cámara para escanear un código o realiza una búsqueda manual"
+                    when {
+                        // Cuando se busca por barcode, el detalle puede cargarse directamente.
+                        productoDetailState is UiState.Loading -> {
+                            LoadingState(message = "Obteniendo detalle del producto...")
+                        }
+                        productoDetailState is UiState.Error -> {
+                            ErrorState(
+                                message = (productoDetailState as UiState.Error).message,
+                                onRetry = {
+                                    if (localSearchQuery.isNotBlank()) {
+                                        productoViewModel.searchByBarcode(localSearchQuery)
+                                    }
+                                }
                             )
                         }
+                        // Lógica original para la lista de búsqueda
+                        else -> {
+                            when (val state = searchState) {
+                                is UiState.Idle -> {
+                                    EmptyState(
+                                        icon = Icons.Default.Search,
+                                        title = "Busca un producto",
+                                        message = "Usa la cámara para escanear un código o realiza una búsqueda manual"
+                                    )
+                                }
 
-                        is UiState.Loading -> {
-                            LoadingState(message = "Buscando productos...")
-                        }
+                                is UiState.Loading -> {
+                                    LoadingState(message = "Buscando productos...")
+                                }
 
-                        is UiState.Success -> {
-                            if (state.data.isEmpty()) {
-                                EmptyState(
-                                    icon = Icons.Default.Search,
-                                    title = "Sin resultados",
-                                    message = "No se encontraron productos con \"$searchQuery\"",
-                                    actionButton = {
-                                        SecondaryButton(
-                                            text = "Nueva búsqueda",
-                                            onClick = {
-                                                localSearchQuery = ""
-                                                productoViewModel.clearSearch()
+                                is UiState.Success -> {
+                                    if (state.data.isEmpty()) {
+                                        EmptyState(
+                                            icon = Icons.Default.Search,
+                                            title = "Sin resultados",
+                                            message = "No se encontraron productos con \"$searchQuery\"",
+                                            actionButton = {
+                                                SecondaryButton(
+                                                    text = "Nueva búsqueda",
+                                                    onClick = {
+                                                        localSearchQuery = ""
+                                                        productoViewModel.clearSearch()
+                                                    }
+                                                )
                                             }
                                         )
-                                    }
-                                )
-                            } else {
-                                Column {
-                                    // Header de resultados
-                                    Text(
-                                        text = "${state.data.size} resultado(s) encontrado(s)",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(16.dp)
-                                    )
-
-                                    // Lista de productos
-                                    LazyColumn(
-                                        contentPadding = PaddingValues(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        items(state.data) { producto ->
-                                            ProductoCard(
-                                                producto = producto,
-                                                onClick = {
-                                                    onNavigateToDetail(producto.sku)
-                                                }
+                                    } else {
+                                        Column {
+                                            // Header de resultados
+                                            Text(
+                                                text = "${state.data.size} resultado(s) encontrado(s)",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(16.dp)
                                             )
+
+                                            // Lista de productos
+                                            LazyColumn(
+                                                contentPadding = PaddingValues(16.dp),
+                                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                items(state.data) { producto ->
+                                                    ProductoCard(
+                                                        producto = producto,
+                                                        onClick = {
+                                                            onNavigateToDetail(producto.sku)
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        is UiState.Error -> {
-                            ErrorState(
-                                message = state.message,
-                                onRetry = {
-                                    productoViewModel.searchProductos(localSearchQuery)
+                                is UiState.Error -> {
+                                    ErrorState(
+                                        message = state.message,
+                                        onRetry = {
+                                            productoViewModel.searchProductos(localSearchQuery)
+                                        }
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                 }

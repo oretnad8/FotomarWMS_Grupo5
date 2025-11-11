@@ -75,12 +75,61 @@ class ProductoViewModel(
     }
 
     /**
-     * Busca un producto específico por código de barras o LPN
-     * Usado cuando se escanea con la cámara
-     * @param codigo Código de barras o LPN escaneado
+     * Busca un producto específico por código de barras o LPN.
+     * Si encuentra un resultado único, obtiene el detalle completo del producto.
+     * Si encuentra múltiples resultados o ninguno, actualiza el estado de búsqueda con la lista.
+     * Usado cuando se escanea con la cámara.
+     * @param codigo Código de barras o LPN escaneado.
      */
     fun searchByBarcode(codigo: String) {
-        searchProductos(codigo)
+        viewModelScope.launch {
+            try {
+                // Inicia estados a Loading/Idle para evitar estados inconsistentes en la UI
+                _searchState.value = UiState.Loading
+                _productoDetailState.value = UiState.Idle
+                _searchQuery.value = codigo
+
+                val searchResult = productoRepository.searchProductos(codigo)
+
+                if (searchResult.isSuccess) {
+                    val products = searchResult.getOrNull()!!
+                    if (products.size == 1) {
+                        // Resultado único: obtenemos el detalle completo.
+                        _productoDetailState.value = UiState.Loading
+                        val sku = products.first().sku
+                        val detailResult = productoRepository.getProductoBySku(sku)
+
+                        if (detailResult.isSuccess) {
+                            val producto = detailResult.getOrNull()!!
+                            _selectedProducto.value = producto
+                            _productoDetailState.value = UiState.Success(producto)
+                            // Limpiamos el estado de búsqueda de lista. La UI debe observar el estado de detalle.
+                            _searchState.value = UiState.Idle
+                        } else {
+                            // Error al obtener el detalle, lo reflejamos en el estado de detalle.
+                            _productoDetailState.value = UiState.Error(
+                                message = detailResult.exceptionOrNull()?.message ?: "Error al obtener detalle del producto"
+                            )
+                            _searchState.value = UiState.Idle
+                        }
+                    } else {
+                        // Múltiples o ningún resultado: mostramos la lista.
+                        _searchState.value = UiState.Success(products)
+                        _productoDetailState.value = UiState.Idle
+                    }
+                } else {
+                    // Error en la búsqueda inicial.
+                    _searchState.value = UiState.Error(
+                        message = searchResult.exceptionOrNull()?.message ?: "Error al buscar productos"
+                    )
+                    _productoDetailState.value = UiState.Idle
+                }
+            } catch (e: Exception) {
+                // Error inesperado durante el proceso.
+                _searchState.value = UiState.Error(message = "Error en la búsqueda por código: ${e.message}")
+                _productoDetailState.value = UiState.Idle
+            }
+        }
     }
 
     /**
