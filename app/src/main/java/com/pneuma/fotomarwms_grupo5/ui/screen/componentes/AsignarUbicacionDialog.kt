@@ -350,11 +350,9 @@ fun AsignarUbicacionDialog(
         }
     }
 
-    // Diálogo de escáner de código de barras
+    // Escáner de código de barras para ubicaciones
     if (showBarcodeScanner) {
-        BarcodeScannerDialog(
-            title = "Escanear Ubicación",
-            onDismiss = { showBarcodeScanner = false },
+        BarcodeScanner(
             onBarcodeScanned = { scannedCode ->
                 // Parsear el código escaneado (formato P1/A1) a formato estándar (P1-A-01)
                 val parsedCode = UbicacionFormatter.parseScannedCode(scannedCode)
@@ -375,6 +373,9 @@ fun AsignarUbicacionDialog(
                     errorMessage = "Código de ubicación inválido. Formato esperado: P1/A1"
                     showBarcodeScanner = false
                 }
+            },
+            onClose = {
+                showBarcodeScanner = false
             }
         )
     }
