@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 
 /**
  * Repositorio para ubicaciones con patrón local-first
+ * Actualizado para soportar 5 pasillos × 60 posiciones × 3 pisos = 900 ubicaciones
  */
 class UbicacionRepository(
     private val ubicacionDao: UbicacionDao,
@@ -29,15 +30,23 @@ class UbicacionRepository(
 
     /**
      * Obtiene todas las ubicaciones del backend y las cachea localmente
+     * @param piso Filtro opcional por piso (A, B, C)
+     * @param pasillo Filtro opcional por pasillo (1-5)
+     * @param forceRefresh Fuerza la actualización desde el backend
      */
-    suspend fun getUbicaciones(piso: String? = null, forceRefresh: Boolean = false): Result<List<Ubicacion>> {
+    suspend fun getUbicaciones(
+        piso: String? = null, 
+        pasillo: Int? = null, 
+        forceRefresh: Boolean = false
+    ): Result<List<Ubicacion>> {
         return try {
             // Si no es refresh forzado, intentar obtener del cache
             if (!forceRefresh) {
-                val cached = if (piso != null) {
-                    ubicacionDao.getByPiso(piso)
-                } else {
-                    ubicacionDao.getAll()
+                val cached = when {
+                    piso != null && pasillo != null -> ubicacionDao.getByPasilloYPiso(pasillo, piso)
+                    piso != null -> ubicacionDao.getByPiso(piso)
+                    pasillo != null -> ubicacionDao.getByPasillo(pasillo)
+                    else -> ubicacionDao.getAll()
                 }
 
                 val cachedData = cached.first()
@@ -45,18 +54,19 @@ class UbicacionRepository(
                 if (cachedData.isNotEmpty()) {
                     Log.d(TAG, "Cargando ${cachedData.size} ubicaciones desde el caché.")
                     // Forzar la actualización desde la red para obtener los detalles del producto
-                     return getUbicaciones(piso, forceRefresh = true)
+                    return getUbicaciones(piso, pasillo, forceRefresh = true)
                 }
             }
 
             // Obtener del backend (Este código solo se ejecuta si el caché está vacío o se fuerza el refresco)
-            val response = apiService.getUbicaciones(piso)
+            val response = apiService.getUbicaciones(piso, pasillo)
             if (response.isSuccessful && response.body() != null) {
                 val ubicaciones = response.body()!!.map { apiUbicacion ->
                     Ubicacion(
                         idUbicacion = apiUbicacion.idUbicacion,
                         codigoUbicacion = apiUbicacion.codigoUbicacion,
-                        piso = apiUbicacion.piso.firstOrNull() ?: ' ',
+                        pasillo = apiUbicacion.pasillo,
+                        piso = apiUbicacion.piso.firstOrNull() ?: 'A',
                         numero = apiUbicacion.numero,
                         productos = apiUbicacion.productos?.map {
                             com.pneuma.fotomarwms_grupo5.models.ProductoEnUbicacion(
@@ -72,6 +82,7 @@ class UbicacionRepository(
                 val ubicacionesLocal = ubicaciones.map {
                     UbicacionLocal(
                         codigo = it.codigoUbicacion,
+                        pasillo = it.pasillo,
                         piso = it.piso.toString(),
                         numero = it.numero
                     )
@@ -100,6 +111,7 @@ class UbicacionRepository(
                 val ubicacion = Ubicacion(
                     idUbicacion = ub.idUbicacion,
                     codigoUbicacion = ub.codigoUbicacion,
+                    pasillo = ub.pasillo,
                     piso = ub.piso.firstOrNull() ?: 'A',
                     numero = ub.numero,
                     productos = ub.productos?.map {
@@ -116,6 +128,39 @@ class UbicacionRepository(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error al obtener ubicación $codigo", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Obtiene las 3 ubicaciones (pisos A, B, C) de una posición específica en un pasillo
+     */
+    suspend fun getUbicacionesByPasilloYPosicion(pasillo: Int, posicion: Int): Result<List<Ubicacion>> {
+        return try {
+            val response = apiService.getUbicacionesByPasilloYPosicion(pasillo, posicion)
+            if (response.isSuccessful && response.body() != null) {
+                val ubicaciones = response.body()!!.map { ub ->
+                    Ubicacion(
+                        idUbicacion = ub.idUbicacion,
+                        codigoUbicacion = ub.codigoUbicacion,
+                        pasillo = ub.pasillo,
+                        piso = ub.piso.firstOrNull() ?: 'A',
+                        numero = ub.numero,
+                        productos = ub.productos?.map {
+                            com.pneuma.fotomarwms_grupo5.models.ProductoEnUbicacion(
+                                sku = it.sku,
+                                descripcion = it.descripcion,
+                                cantidad = it.cantidadEnUbicacion
+                            )
+                        }
+                    )
+                }
+                Result.success(ubicaciones)
+            } else {
+                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener ubicaciones del pasillo $pasillo posición $posicion", e)
             Result.failure(e)
         }
     }
@@ -212,11 +257,12 @@ class UbicacionRepository(
     /**
      * Obtiene ubicaciones del cache local
      */
-    fun getUbicacionesFromCache(piso: String? = null): Flow<List<UbicacionLocal>> {
-        return if (piso != null) {
-            ubicacionDao.getByPiso(piso)
-        } else {
-            ubicacionDao.getAll()
+    fun getUbicacionesFromCache(piso: String? = null, pasillo: Int? = null): Flow<List<UbicacionLocal>> {
+        return when {
+            piso != null && pasillo != null -> ubicacionDao.getByPasilloYPiso(pasillo, piso)
+            piso != null -> ubicacionDao.getByPiso(piso)
+            pasillo != null -> ubicacionDao.getByPasillo(pasillo)
+            else -> ubicacionDao.getAll()
         }
     }
 }

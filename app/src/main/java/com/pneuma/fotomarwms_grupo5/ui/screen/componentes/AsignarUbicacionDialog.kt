@@ -12,23 +12,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.pneuma.fotomarwms_grupo5.models.UbicacionFormatter
 
 /**
  * Diálogo para asignar un producto a una ubicación
- * Versión compacta para usar dentro de otras pantallas
+ * Versión actualizada con soporte para 5 pasillos y escáner de código de barras
  */
 @Composable
 fun AsignarUbicacionDialog(
     sku: String,
     onDismiss: () -> Unit,
-    onConfirm: (String, Int) -> Unit, // codigoUbicacion, cantidad
+    onConfirm: (String, Int) -> Unit, // codigoUbicacion (formato P1-A-01), cantidad
     modifier: Modifier = Modifier
 ) {
+    var selectedPasillo by remember { mutableStateOf(1) }
     var selectedPiso by remember { mutableStateOf("A") }
     var numeroUbicacion by remember { mutableStateOf("") }
     var cantidad by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var showBarcodeScanner by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -90,6 +93,54 @@ fun AsignarUbicacionDialog(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Botón de escanear código de barras
+                OutlinedButton(
+                    onClick = { showBarcodeScanner = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Escanear Código de Ubicación")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Selector de pasillo
+                Text(
+                    text = "Pasillo",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    (1..5).forEach { pasillo ->
+                        FilterChip(
+                            selected = selectedPasillo == pasillo,
+                            onClick = { selectedPasillo = pasillo },
+                            label = { Text("P$pasillo") },
+                            leadingIcon = if (selectedPasillo == pasillo) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            } else null,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
 
@@ -198,8 +249,13 @@ fun AsignarUbicacionDialog(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
+                                val numero = numeroUbicacion.toIntOrNull() ?: 0
                                 Text(
-                                    text = "$selectedPiso-${numeroUbicacion.padStart(2, '0')}",
+                                    text = UbicacionFormatter.formatCodigo(
+                                        selectedPasillo,
+                                        selectedPiso[0],
+                                        numero
+                                    ),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -268,7 +324,11 @@ fun AsignarUbicacionDialog(
                                     errorMessage = "Cantidad inválida"
                                 }
                                 else -> {
-                                    val codigoUbicacion = "$selectedPiso-${numero.toString().padStart(2, '0')}"
+                                    val codigoUbicacion = UbicacionFormatter.formatCodigo(
+                                        selectedPasillo,
+                                        selectedPiso[0],
+                                        numero
+                                    )
                                     onConfirm(codigoUbicacion, cant)
                                     onDismiss()
                                 }
@@ -288,5 +348,34 @@ fun AsignarUbicacionDialog(
                 }
             }
         }
+    }
+
+    // Diálogo de escáner de código de barras
+    if (showBarcodeScanner) {
+        BarcodeScannerDialog(
+            title = "Escanear Ubicación",
+            onDismiss = { showBarcodeScanner = false },
+            onBarcodeScanned = { scannedCode ->
+                // Parsear el código escaneado (formato P1/A1) a formato estándar (P1-A-01)
+                val parsedCode = UbicacionFormatter.parseScannedCode(scannedCode)
+                
+                if (parsedCode != null) {
+                    // Extraer componentes del código parseado
+                    val components = UbicacionFormatter.parseCodigo(parsedCode)
+                    if (components != null) {
+                        val (pasillo, piso, numero) = components
+                        selectedPasillo = pasillo
+                        selectedPiso = piso.toString()
+                        numeroUbicacion = numero.toString()
+                        showBarcodeScanner = false
+                        showError = false
+                    }
+                } else {
+                    showError = true
+                    errorMessage = "Código de ubicación inválido. Formato esperado: P1/A1"
+                    showBarcodeScanner = false
+                }
+            }
+        )
     }
 }

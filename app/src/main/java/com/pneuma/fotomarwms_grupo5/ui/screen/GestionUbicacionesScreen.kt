@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pneuma.fotomarwms_grupo5.models.Pasillo
 import com.pneuma.fotomarwms_grupo5.models.Piso
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
@@ -24,11 +25,14 @@ import kotlinx.coroutines.launch
  * Pantalla de Gestión de Ubicaciones
  *
  * Funcionalidades:
- * - Vista de todas las ubicaciones por piso (A, B, C)
- * - Filtro por piso
+ * - Vista de todas las ubicaciones por pasillo y piso
+ * - Filtro por pasillo (1-5)
+ * - Filtro por piso (A, B, C)
  * - Vista en cuadrícula de ubicaciones
  * - Jefe: Asignación directa de productos
  * - Operador: Solicitar cambio de ubicación (requiere aprobación)
+ * 
+ * Actualizado para soportar 5 pasillos × 60 posiciones × 3 pisos = 900 ubicaciones
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +47,7 @@ fun GestionUbicacionesScreen(
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val ubicacionesState by ubicacionViewModel.ubicacionesState.collectAsStateWithLifecycle()
     val pisoSeleccionado by ubicacionViewModel.pisoSeleccionado.collectAsStateWithLifecycle()
+    val pasilloSeleccionado by ubicacionViewModel.pasilloSeleccionado.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -86,11 +91,56 @@ fun GestionUbicacionesScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // ========== FILTROS POR PISO ==========
+                // ========== FILTRO POR PASILLO ==========
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Filtrar por pasillo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Botón Todos
+                            FilterChip(
+                                text = "Todos",
+                                selected = pasilloSeleccionado == null,
+                                onClick = {
+                                    ubicacionViewModel.clearPasilloFilter()
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            // Botones de pasillos 1-5
+                            Pasillo.values().forEach { pasillo ->
+                                FilterChip(
+                                    text = "P${pasillo.numero}",
+                                    selected = pasilloSeleccionado == pasillo,
+                                    onClick = {
+                                        ubicacionViewModel.getUbicacionesByPasillo(pasillo)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ========== FILTRO POR PISO ==========
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -165,11 +215,11 @@ fun GestionUbicacionesScreen(
                                 EmptyState(
                                     icon = Icons.Default.LocationOff,
                                     title = "Sin ubicaciones",
-                                    message = "No se encontraron ubicaciones para este piso"
+                                    message = "No se encontraron ubicaciones para los filtros seleccionados"
                                 )
                             } else {
                                 Column {
-                                    // Header con contador
+                                    // Header con contador y filtros activos
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -183,11 +233,22 @@ fun GestionUbicacionesScreen(
                                             fontWeight = FontWeight.Bold
                                         )
 
+                                        // Mostrar filtros activos
+                                        val filtrosActivos = buildString {
+                                            if (pasilloSeleccionado != null) {
+                                                append("Pasillo ${pasilloSeleccionado!!.numero}")
+                                            }
+                                            if (pisoSeleccionado != null) {
+                                                if (isNotEmpty()) append(" • ")
+                                                append("Piso ${pisoSeleccionado!!.codigo}")
+                                            }
+                                            if (isEmpty()) {
+                                                append("Todos")
+                                            }
+                                        }
+
                                         Text(
-                                            text = if (pisoSeleccionado != null)
-                                                "Piso ${pisoSeleccionado!!.codigo}"
-                                            else
-                                                "Todos los pisos",
+                                            text = filtrosActivos,
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
@@ -217,10 +278,22 @@ fun GestionUbicacionesScreen(
                             ErrorState(
                                 message = state.message,
                                 onRetry = {
-                                    if (pisoSeleccionado != null) {
-                                        ubicacionViewModel.getUbicacionesByPiso(pisoSeleccionado!!)
-                                    } else {
-                                        ubicacionViewModel.getAllUbicaciones()
+                                    when {
+                                        pasilloSeleccionado != null && pisoSeleccionado != null -> {
+                                            ubicacionViewModel.getUbicacionesByPasilloYPiso(
+                                                pasilloSeleccionado!!,
+                                                pisoSeleccionado!!
+                                            )
+                                        }
+                                        pasilloSeleccionado != null -> {
+                                            ubicacionViewModel.getUbicacionesByPasillo(pasilloSeleccionado!!)
+                                        }
+                                        pisoSeleccionado != null -> {
+                                            ubicacionViewModel.getUbicacionesByPiso(pisoSeleccionado!!)
+                                        }
+                                        else -> {
+                                            ubicacionViewModel.getAllUbicaciones()
+                                        }
                                     }
                                 }
                             )
@@ -230,7 +303,7 @@ fun GestionUbicacionesScreen(
                             EmptyState(
                                 icon = Icons.Default.LocationOn,
                                 title = "Ubicaciones",
-                                message = "Selecciona un piso para ver las ubicaciones"
+                                message = "Selecciona un pasillo o piso para ver las ubicaciones"
                             )
                         }
                     }

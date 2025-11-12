@@ -13,8 +13,9 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel para gestión de ubicaciones en bodega
- * Maneja ubicaciones, asignación de productos y consultas por piso
+ * Maneja ubicaciones, asignación de productos y consultas por piso y pasillo
  * Usa UbicacionRepository con patrón local-first
+ * Actualizado para soportar 5 pasillos × 60 posiciones × 3 pisos = 900 ubicaciones
  */
 class UbicacionViewModel(
     application: Application,
@@ -38,6 +39,9 @@ class UbicacionViewModel(
     private val _pisoSeleccionado = MutableStateFlow<Piso?>(null)
     val pisoSeleccionado: StateFlow<Piso?> = _pisoSeleccionado.asStateFlow()
 
+    private val _pasilloSeleccionado = MutableStateFlow<Pasillo?>(null)
+    val pasilloSeleccionado: StateFlow<Pasillo?> = _pasilloSeleccionado.asStateFlow()
+
     // ========== CONSULTA DE UBICACIONES ==========
 
     /**
@@ -49,7 +53,11 @@ class UbicacionViewModel(
             try {
                 _ubicacionesState.value = UiState.Loading
 
-                val result = ubicacionRepository.getUbicaciones(piso = null, forceRefresh = forceRefresh)
+                val result = ubicacionRepository.getUbicaciones(
+                    piso = null, 
+                    pasillo = null, 
+                    forceRefresh = forceRefresh
+                )
                 
                 _ubicacionesState.value = if (result.isSuccess) {
                     UiState.Success(result.getOrNull() ?: emptyList())
@@ -80,6 +88,7 @@ class UbicacionViewModel(
 
                 val result = ubicacionRepository.getUbicaciones(
                     piso = piso.codigo.toString(),
+                    pasillo = _pasilloSeleccionado.value?.numero,
                     forceRefresh = forceRefresh
                 )
                 
@@ -100,9 +109,75 @@ class UbicacionViewModel(
     }
 
     /**
+     * Obtiene ubicaciones filtradas por pasillo
+     * Conecta con: GET /api/ubicaciones?pasillo={1|2|3|4|5}
+     * @param pasillo Pasillo a filtrar (1-5)
+     */
+    fun getUbicacionesByPasillo(pasillo: Pasillo, forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                _ubicacionesState.value = UiState.Loading
+                _pasilloSeleccionado.value = pasillo
+
+                val result = ubicacionRepository.getUbicaciones(
+                    piso = _pisoSeleccionado.value?.codigo?.toString(),
+                    pasillo = pasillo.numero,
+                    forceRefresh = forceRefresh
+                )
+                
+                _ubicacionesState.value = if (result.isSuccess) {
+                    UiState.Success(result.getOrNull() ?: emptyList())
+                } else {
+                    UiState.Error(
+                        message = result.exceptionOrNull()?.message ?: "Error al obtener ubicaciones"
+                    )
+                }
+
+            } catch (e: Throwable) {
+                _ubicacionesState.value = UiState.Error(
+                    message = "Error al obtener ubicaciones del pasillo ${pasillo.numero}: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Obtiene ubicaciones filtradas por pasillo y piso
+     * Conecta con: GET /api/ubicaciones?pasillo={1-5}&piso={A|B|C}
+     */
+    fun getUbicacionesByPasilloYPiso(pasillo: Pasillo, piso: Piso, forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                _ubicacionesState.value = UiState.Loading
+                _pasilloSeleccionado.value = pasillo
+                _pisoSeleccionado.value = piso
+
+                val result = ubicacionRepository.getUbicaciones(
+                    piso = piso.codigo.toString(),
+                    pasillo = pasillo.numero,
+                    forceRefresh = forceRefresh
+                )
+                
+                _ubicacionesState.value = if (result.isSuccess) {
+                    UiState.Success(result.getOrNull() ?: emptyList())
+                } else {
+                    UiState.Error(
+                        message = result.exceptionOrNull()?.message ?: "Error al obtener ubicaciones"
+                    )
+                }
+
+            } catch (e: Throwable) {
+                _ubicacionesState.value = UiState.Error(
+                    message = "Error al obtener ubicaciones del pasillo ${pasillo.numero} piso ${piso.codigo}: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
      * Obtiene el detalle de una ubicación específica
      * Conecta con: GET /api/ubicaciones/{codigo}
-     * @param codigo Código de la ubicación (ej: A-12, B-45)
+     * @param codigo Código de la ubicación (formato: P1-A-12, P3-B-45)
      */
     fun getUbicacionDetail(codigo: String) {
         viewModelScope.launch {
@@ -136,7 +211,7 @@ class UbicacionViewModel(
      * Conecta con: POST /api/ubicaciones/asignar
      * Usa patrón local-first: guarda local → envía backend → elimina si OK
      * @param sku SKU del producto
-     * @param codigoUbicacion Código de la ubicación (ej: A-12)
+     * @param codigoUbicacion Código de la ubicación (formato: P1-A-12)
      * @param cantidad Cantidad a asignar
      */
     fun asignarProducto(
@@ -227,9 +302,20 @@ class UbicacionViewModel(
                     val syncCount = result.getOrNull() ?: 0
                     // Recargar ubicaciones si hay cambios
                     if (syncCount > 0) {
-                        _pisoSeleccionado.value?.let { piso ->
-                            getUbicacionesByPiso(piso)
-                        } ?: getAllUbicaciones()
+                        when {
+                            _pasilloSeleccionado.value != null && _pisoSeleccionado.value != null -> {
+                                getUbicacionesByPasilloYPiso(_pasilloSeleccionado.value!!, _pisoSeleccionado.value!!)
+                            }
+                            _pasilloSeleccionado.value != null -> {
+                                getUbicacionesByPasillo(_pasilloSeleccionado.value!!)
+                            }
+                            _pisoSeleccionado.value != null -> {
+                                getUbicacionesByPiso(_pisoSeleccionado.value!!)
+                            }
+                            else -> {
+                                getAllUbicaciones()
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -246,6 +332,7 @@ class UbicacionViewModel(
     fun clearUbicaciones() {
         _ubicacionesState.value = UiState.Idle
         _pisoSeleccionado.value = null
+        _pasilloSeleccionado.value = null
     }
 
     /**
@@ -268,26 +355,54 @@ class UbicacionViewModel(
      */
     fun clearPisoFilter() {
         _pisoSeleccionado.value = null
+        // Mantener filtro de pasillo si existe
+        if (_pasilloSeleccionado.value != null) {
+            getUbicacionesByPasillo(_pasilloSeleccionado.value!!)
+        } else {
+            getAllUbicaciones()
+        }
+    }
+
+    /**
+     * Limpia el filtro de pasillo y muestra todas las ubicaciones
+     */
+    fun clearPasilloFilter() {
+        _pasilloSeleccionado.value = null
+        // Mantener filtro de piso si existe
+        if (_pisoSeleccionado.value != null) {
+            getUbicacionesByPiso(_pisoSeleccionado.value!!)
+        } else {
+            getAllUbicaciones()
+        }
+    }
+
+    /**
+     * Limpia todos los filtros y muestra todas las ubicaciones
+     */
+    fun clearAllFilters() {
+        _pisoSeleccionado.value = null
+        _pasilloSeleccionado.value = null
         getAllUbicaciones()
     }
 
     /**
      * Valida el formato de un código de ubicación
-     * @param codigo Código a validar (debe ser formato: A-12, B-45, C-60)
+     * @param codigo Código a validar (formato: P1-A-12, P3-B-45, P5-C-60)
      * @return true si el formato es válido
      */
     fun isCodigoValido(codigo: String): Boolean {
-        val regex = Regex("^[ABC]-([0-5]?[0-9]|60)$")
+        val regex = Regex("""^P[1-5]-[ABC]-([0-5]?[0-9]|60)$""")
         return regex.matches(codigo)
     }
 
     /**
-     * Genera un código de ubicación a partir de piso y número
+     * Genera un código de ubicación a partir de pasillo, piso y número
+     * @param pasillo Pasillo (1-5)
      * @param piso Piso (A, B o C)
      * @param numero Número (1-60)
-     * @return Código en formato A-12, B-05, etc.
+     * @return Código en formato P1-A-12, P3-B-05, etc.
      */
-    fun generarCodigo(piso: Char, numero: Int): String {
-        return "$piso-${numero.toString().padStart(2, '0')}"
+    fun generarCodigo(pasillo: Int, piso: Char, numero: Int): String {
+        return UbicacionFormatter.formatCodigo(pasillo, piso, numero)
     }
 }

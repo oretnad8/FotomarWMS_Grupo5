@@ -74,13 +74,16 @@ data class UbicacionResponse(
     val idUbicacion: Int,
 
     @SerializedName("codigoUbicacion")
-    val codigoUbicacion: String, // El campo ahora coincide con el JSON
+    val codigoUbicacion: String, // Formato: P{pasillo}-{piso}-{numero}
+
+    @SerializedName("pasillo")
+    val pasillo: Int, // 1-5
 
     @SerializedName("piso")
-    val piso: String,
+    val piso: String, // A, B, C
 
     @SerializedName("numero")
-    val numero: Int,
+    val numero: Int, // 1-60
 
     // Es buena práctica definir todos los campos que vienen en el JSON
     @SerializedName("productos")
