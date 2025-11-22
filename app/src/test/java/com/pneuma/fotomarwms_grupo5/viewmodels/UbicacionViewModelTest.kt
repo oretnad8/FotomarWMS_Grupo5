@@ -75,3 +75,8 @@ class UbicacionViewModelTest {
         assertTrue((estado as UiState.Success).data.isNotEmpty())
     }
 }
+
+/*test asegura que la lógica de filtrado funciona:
+la app sabe pedir datos específicos (Piso A) y actualizar
+la vista sin errores."
+*/
