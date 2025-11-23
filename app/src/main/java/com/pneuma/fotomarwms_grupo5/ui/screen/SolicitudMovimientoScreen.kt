@@ -44,6 +44,8 @@ fun SolicitudMovimientoScreen(
     var motivo by remember { mutableStateOf("") }
     var idUbicacionOrigen by remember { mutableStateOf("") }
     var idUbicacionDestino by remember { mutableStateOf("") }
+    var ubicacionIngreso by remember { mutableStateOf("") }
+    var ubicacionEgreso by remember { mutableStateOf("") }
 
     // Estados de validación
     var skuError by remember { mutableStateOf<String?>(null) }
@@ -68,6 +70,8 @@ fun SolicitudMovimientoScreen(
                 motivo = ""
                 idUbicacionOrigen = ""
                 idUbicacionDestino = ""
+                ubicacionIngreso = ""
+                ubicacionEgreso = ""
             }
             is UiState.Error -> {
                 errorMessage = state.message
@@ -199,34 +203,207 @@ fun SolicitudMovimientoScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Campos específicos para REUBICACION
+                        // ========== REUBICACIÓN ==========
                         if (tipoMovimiento == TipoMovimiento.REUBICACION) {
-                            NumberTextField(
-                                value = idUbicacionOrigen,
-                                onValueChange = {
-                                    idUbicacionOrigen = it
-                                    ubicacionError = null
-                                },
-                                label = "ID Ubicación Origen",
-                                placeholder = "Ej: 12",
-                                isError = ubicacionError != null,
-                                errorMessage = ubicacionError,
-                                leadingIcon = Icons.Default.LocationOn
+                            Text(
+                                text = "Ubicaciones",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 12.dp)
                             )
+
+                            // Ubicación Origen
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = idUbicacionOrigen,
+                                    onValueChange = {
+                                        idUbicacionOrigen = it
+                                        ubicacionError = null
+                                    },
+                                    label = { Text("Ubicación Origen") },
+                                    placeholder = { Text("Ej: P1-A-01") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    isError = ubicacionError != null
+                                )
+
+                                ScanUbicacionButton(
+                                    onUbicacionScanned = { ubicacion ->
+                                        idUbicacionOrigen = ubicacion
+                                        ubicacionError = null
+                                    },
+                                    label = "Escanear",
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+
+                            if (ubicacionError != null) {
+                                Text(
+                                    text = ubicacionError!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
+                                )
+                            }
+
+                            // Ubicación Destino
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = idUbicacionDestino,
+                                    onValueChange = {
+                                        idUbicacionDestino = it
+                                        ubicacionError = null
+                                    },
+                                    label = { Text("Ubicación Destino") },
+                                    placeholder = { Text("Ej: P2-B-05") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    isError = ubicacionError != null
+                                )
+
+                                ScanUbicacionButton(
+                                    onUbicacionScanned = { ubicacion ->
+                                        idUbicacionDestino = ubicacion
+                                        ubicacionError = null
+                                    },
+                                    label = "Escanear",
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
 
                             Spacer(modifier = Modifier.height(16.dp))
+                        }
 
-                            NumberTextField(
-                                value = idUbicacionDestino,
-                                onValueChange = {
-                                    idUbicacionDestino = it
-                                    ubicacionError = null
-                                },
-                                label = "ID Ubicación Destino",
-                                placeholder = "Ej: 25",
-                                isError = ubicacionError != null,
-                                leadingIcon = Icons.Default.LocationOn
+                        // ========== INGRESO ==========
+                        if (tipoMovimiento == TipoMovimiento.INGRESO) {
+                            Text(
+                                text = "Ubicación de Ingreso",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 12.dp)
                             )
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = ubicacionIngreso,
+                                    onValueChange = {
+                                        ubicacionIngreso = it
+                                        ubicacionError = null
+                                    },
+                                    label = { Text("Ubicación") },
+                                    placeholder = { Text("Ej: P1-A-01") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    isError = ubicacionError != null
+                                )
+
+                                ScanUbicacionButton(
+                                    onUbicacionScanned = { ubicacion ->
+                                        ubicacionIngreso = ubicacion
+                                        ubicacionError = null
+                                    },
+                                    label = "Escanear",
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+
+                            if (ubicacionError != null) {
+                                Text(
+                                    text = ubicacionError!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // ========== EGRESO ==========
+                        if (tipoMovimiento == TipoMovimiento.EGRESO) {
+                            Text(
+                                text = "Ubicación de Egreso",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = ubicacionEgreso,
+                                    onValueChange = {
+                                        ubicacionEgreso = it
+                                        ubicacionError = null
+                                    },
+                                    label = { Text("Ubicación") },
+                                    placeholder = { Text("Ej: P1-A-01") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    isError = ubicacionError != null
+                                )
+
+                                ScanUbicacionButton(
+                                    onUbicacionScanned = { ubicacion ->
+                                        ubicacionEgreso = ubicacion
+                                        ubicacionError = null
+                                    },
+                                    label = "Escanear",
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+
+                            if (ubicacionError != null) {
+                                Text(
+                                    text = ubicacionError!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
+                                )
+                            }
 
                             Spacer(modifier = Modifier.height(16.dp))
                         }
@@ -305,23 +482,36 @@ fun SolicitudMovimientoScreen(
                             isValid = false
                         }
 
-                        if (tipoMovimiento == TipoMovimiento.REUBICACION) {
-                            if (idUbicacionOrigen.isBlank() || idUbicacionDestino.isBlank()) {
-                                ubicacionError = "Las ubicaciones son obligatorias"
-                                isValid = false
+                        when (tipoMovimiento) {
+                            TipoMovimiento.REUBICACION -> {
+                                if (idUbicacionOrigen.isBlank() || idUbicacionDestino.isBlank()) {
+                                    ubicacionError = "Las ubicaciones son obligatorias"
+                                    isValid = false
+                                }
                             }
+                            TipoMovimiento.INGRESO -> {
+                                if (ubicacionIngreso.isBlank()) {
+                                    ubicacionError = "La ubicación de ingreso es obligatoria"
+                                    isValid = false
+                                }
+                            }
+                            TipoMovimiento.EGRESO -> {
+                                if (ubicacionEgreso.isBlank()) {
+                                    ubicacionError = "La ubicación de egreso es obligatoria"
+                                    isValid = false
+                                }
+                            }
+                            else -> {}
                         }
 
                         // Si es válido, enviar solicitud
                         if (isValid) {
                             when (tipoMovimiento) {
                                 TipoMovimiento.INGRESO -> {
-                                    // Para INGRESO necesitamos ubicacionDestino como String
-                                    // Por ahora usamos el ID como String, pero idealmente debería ser código
                                     aprobacionViewModel.solicitarIngreso(
                                         sku = sku,
                                         cantidad = cantidad.toInt(),
-                                        ubicacionDestino = "", // TODO: Obtener código de ubicación
+                                        ubicacionDestino = ubicacionIngreso,
                                         motivo = motivo
                                     )
                                 }
@@ -329,7 +519,7 @@ fun SolicitudMovimientoScreen(
                                     aprobacionViewModel.solicitarEgreso(
                                         sku = sku,
                                         cantidad = cantidad.toInt(),
-                                        ubicacionOrigen = "", // TODO: Obtener código de ubicación
+                                        ubicacionOrigen = ubicacionEgreso,
                                         motivo = motivo
                                     )
                                 }
@@ -337,8 +527,8 @@ fun SolicitudMovimientoScreen(
                                     aprobacionViewModel.solicitarReubicacion(
                                         sku = sku,
                                         cantidad = cantidad.toInt(),
-                                        ubicacionOrigen = "", // TODO: Convertir ID a código
-                                        ubicacionDestino = "", // TODO: Convertir ID a código
+                                        ubicacionOrigen = idUbicacionOrigen,
+                                        ubicacionDestino = idUbicacionDestino,
                                         motivo = motivo
                                     )
                                 }
