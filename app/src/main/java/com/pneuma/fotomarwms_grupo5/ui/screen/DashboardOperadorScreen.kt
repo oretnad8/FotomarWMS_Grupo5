@@ -16,7 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
-import com.pneuma.fotomarwms_grupo5.viewmodels.MensajeViewModel
+
 import kotlinx.coroutines.launch
 
 /**
@@ -32,20 +32,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardOperadorScreen(
     authViewModel: AuthViewModel,
-    mensajeViewModel: MensajeViewModel,
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Estados
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
-    val resumenMensajes by mensajeViewModel.resumenState.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    // Cargar resumen al iniciar
-    LaunchedEffect(Unit) {
-        mensajeViewModel.getResumenMensajes()
-    }
 
     // Drawer con menú lateral
     ModalNavigationDrawer(
@@ -74,30 +67,7 @@ fun DashboardOperadorScreen(
                     onMenuClick = {
                         scope.launch { drawerState.open() }
                     },
-                    actions = {
-                        // Badge de mensajes no leídos
-                        when (val state = resumenMensajes) {
-                            is UiState.Success -> {
-                                if (state.data.totalNoLeidos > 0) {
-                                    BadgedBox(
-                                        badge = {
-                                            Badge {
-                                                Text(state.data.totalNoLeidos.toString())
-                                            }
-                                        }
-                                    ) {
-                                        IconButton(onClick = { onNavigate("mensajes") }) {
-                                            Icon(
-                                                Icons.Default.Email,
-                                                contentDescription = "Mensajes"
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            else -> {}
-                        }
-                    }
+                    actions = {}
                 )
             }
         ) { paddingValues ->
@@ -123,67 +93,7 @@ fun DashboardOperadorScreen(
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
 
-                // ========== MENSAJE DEL JEFE ==========
-                when (val state = resumenMensajes) {
-                    is UiState.Success -> {
-                        if (state.data.ultimoMensaje != null) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
-                                onClick = { onNavigate("mensajes") }
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Email,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "📬 Mensaje del Jefe",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
 
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Text(
-                                        text = state.data.ultimoMensaje.titulo,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
-                                    )
-
-                                    Text(
-                                        text = state.data.ultimoMensaje.contenido.take(100) + "...",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Text(
-                                        text = "Hace 2 horas", // TODO: Calcular tiempo real
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    else -> {}
-                }
 
                 // ========== TAREAS PENDIENTES ==========
                 Text(
@@ -199,7 +109,7 @@ fun DashboardOperadorScreen(
                     title = "Conteo físico - Sección A",
                     description = "Realizar conteo completo de productos en estantes A-1 a A-5",
                     priority = "ALTA",
-                    onClick = { onNavigate("inventario") }
+                    onClick = { onNavigate("busqueda") }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -255,14 +165,6 @@ fun DashboardOperadorScreen(
                         icon = Icons.Default.List,
                         text = "Mis Solicitudes",
                         onClick = { onNavigate("mis_solicitudes") },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Inventario
-                    QuickActionCard(
-                        icon = Icons.Default.Inventory,
-                        text = "Inventario",
-                        onClick = { onNavigate("inventario") },
                         modifier = Modifier.weight(1f)
                     )
                 }

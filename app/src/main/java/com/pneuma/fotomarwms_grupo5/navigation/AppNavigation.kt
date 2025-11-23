@@ -109,41 +109,7 @@ sealed class Screen(val route: String) {
      */
     object MisSolicitudes : Screen("mis_solicitudes")
 
-    // ========== MENSAJES ==========
 
-    /**
-     * Bandeja de mensajes
-     * Muestra mensajes recibidos del jefe o sistema
-     */
-    object Mensajes : Screen("mensajes")
-
-    /**
-     * Enviar nuevo mensaje
-     * Solo para JEFE/SUPERVISOR
-     */
-    object EnviarMensaje : Screen("enviar_mensaje")
-
-    // ========== INVENTARIO ==========
-
-    /**
-     * Vista de inventario con progreso
-     * Permite realizar conteo físico y ver diferencias
-     */
-    object Inventario : Screen("inventario")
-
-    /**
-     * Conteo de una ubicación específica
-     * Registrar cantidad física encontrada
-     */
-    data class ConteoUbicacion(val idUbicacion: Int) : Screen("conteo_ubicacion/{idUbicacion}") {
-        fun buildRoute(): String = "conteo_ubicacion/$idUbicacion"
-    }
-
-    /**
-     * Lista de diferencias encontradas
-     * Muestra discrepancias entre sistema y físico
-     */
-    object DiferenciasInventario : Screen("diferencias_inventario")
 
     // ========== GESTIÓN DE USUARIOS ==========
 
@@ -188,9 +154,6 @@ fun getDashboardForRole(rol: String): Screen {
 
 // Ruta simple para Configuración
 data object Configuracion : Screen("configuracion")
-
-//Ruta diferencias inventario
-data object DiferenciasInventario : Screen("diferenciasInventario")
 
 
 // Detalle de ubicación (recibe argumento `codigo`)

@@ -19,10 +19,9 @@ import com.pneuma.fotomarwms_grupo5.db.entities.*
         AprobacionLocal::class,
         UsuarioLocal::class,
         ConteoLocal::class,
-        MensajeLocal::class,
         AsignacionUbicacionLocal::class
     ],
-    version = 6, // Incrementado por los cambios
+    version = 7, // Incrementado por la eliminación de MensajeLocal
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,7 +33,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun aprobacionDao(): AprobacionDao
     abstract fun usuarioDao(): UsuarioDao
     abstract fun conteoDao(): ConteoDao
-    abstract fun mensajeDao(): MensajeDao
     abstract fun asignacionUbicacionDao(): AsignacionUbicacionDao
 
     companion object {

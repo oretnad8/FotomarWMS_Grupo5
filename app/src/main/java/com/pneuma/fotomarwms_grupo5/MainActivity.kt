@@ -76,8 +76,6 @@ fun FotomarWMSApp() {
     
     // ViewModels que solo requieren Application
     val aprobacionViewModel: AprobacionViewModel = viewModel()
-    val mensajeViewModel: MensajeViewModel = viewModel()
-    val inventarioViewModel: InventarioViewModel = viewModel()
     val usuarioViewModel: UsuarioViewModel = viewModel()
 
     // Layout base
@@ -164,7 +162,6 @@ fun FotomarWMSApp() {
                 DashboardJefeScreen(
                     authViewModel = authViewModel,
                     aprobacionViewModel = aprobacionViewModel,
-                    mensajeViewModel = mensajeViewModel,
                     onNavigate = { route ->
                         navController.navigate(route)
                     }
@@ -176,7 +173,6 @@ fun FotomarWMSApp() {
                 DashboardJefeScreen(
                     authViewModel = authViewModel,
                     aprobacionViewModel = aprobacionViewModel,
-                    mensajeViewModel = mensajeViewModel,
                     onNavigate = { route ->
                         navController.navigate(route)
                     }
@@ -187,7 +183,6 @@ fun FotomarWMSApp() {
             composable(route = Screen.DashboardOperador.route) {
                 DashboardOperadorScreen(
                     authViewModel = authViewModel,
-                    mensajeViewModel = mensajeViewModel,
                     onNavigate = { route ->
                         navController.navigate(route)
                     }
@@ -343,59 +338,7 @@ fun FotomarWMSApp() {
                 }
             }
 
-            // ========== MENSAJES ==========
 
-            // Bandeja de mensajes
-            composable(route = Screen.Mensajes.route) {
-                MensajesScreen(
-                    authViewModel = authViewModel,
-                    mensajeViewModel = mensajeViewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-
-            // Enviar mensaje (Jefe/Supervisor)
-            composable(Screen.EnviarMensaje.route) {
-                EnviarMensajeScreen(
-                    mensajeViewModel = mensajeViewModel,
-                    usuarioViewModel = usuarioViewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            // ========== INVENTARIO ==========
-
-            // Pantalla principal de inventario
-            composable(route = Screen.Inventario.route) {
-                InventarioScreen(
-                    authViewModel = authViewModel,
-                    inventarioViewModel = inventarioViewModel,
-                    onNavigateToDiferencias = {
-                        navController.navigate(Screen.DiferenciasInventario.route)
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-
-            // Diferencias de inventario
-            composable(
-                route = "conteo_ubicacion/{idUbicacion}",
-                arguments = listOf(
-                    navArgument("idUbicacion") { type = NavType.IntType }
-                )
-            ) { backStackEntry ->
-                val idUbicacion = backStackEntry.arguments?.getInt("idUbicacion") ?: return@composable
-                ConteoUbicacionScreen(
-                    idUbicacion = idUbicacion,
-                    ubicacionViewModel = ubicacionViewModel,
-                    inventarioViewModel = inventarioViewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
 
             // ========== GESTIÓN DE USUARIOS (ADMIN) ==========
 

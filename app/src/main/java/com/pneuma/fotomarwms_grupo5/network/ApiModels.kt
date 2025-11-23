@@ -145,61 +145,7 @@ data class RechazarRequest(
     val observaciones: String?
 )
 
-// ========== MENSAJE MODELS ==========
 
-data class MensajeRequest(
-    val idDestinatario: Int?,
-    val titulo: String,
-    val contenido: String,
-    val importante: Boolean
-)
-
-data class MensajeResponse(
-    val id: Int,
-    val idRemitente: Int,
-    val nombreRemitente: String,
-    val idDestinatario: Int?,
-    val titulo: String,
-    val contenido: String,
-    val importante: Boolean,
-    val leido: Boolean,
-    val fechaEnvio: String
-)
-
-data class ResumenMensajesResponse(
-    val totalMensajes: Int,
-    val mensajesNoLeidos: Int,
-    val mensajesImportantes: Int
-)
-
-// ========== INVENTARIO MODELS ==========
-
-data class ConteoRequest(
-    val sku: String,
-    val idUbicacion: Int,
-    val cantidadFisica: Int
-)
-
-data class ProgresoInventarioResponse(
-    val totalUbicaciones: Int,
-    val ubicacionesContadas: Int,
-    val ubicacionesPendientes: Int,
-    val porcentajeCompletado: Double,
-    val totalDiferenciasRegistradas: Int,
-    val totalFaltantes: Int,
-    val totalSobrantes: Int,
-    val ubicacionesConDiferencias: Int
-)
-
-data class DiferenciaInventarioResponse(
-    val sku: String,
-    val descripcion: String,
-    val idUbicacion: Int,
-    val codigoUbicacion: String,
-    val cantidadSistema: Int,
-    val cantidadFisica: Int,
-    val diferencia: Int
-)
 
 // ========== GENERIC API RESPONSE ==========
 

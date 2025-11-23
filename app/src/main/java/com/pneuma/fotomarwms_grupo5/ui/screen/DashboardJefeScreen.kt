@@ -17,7 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.AprobacionViewModel
-import com.pneuma.fotomarwms_grupo5.viewmodels.MensajeViewModel
+
 import kotlinx.coroutines.launch
 import com.pneuma.fotomarwms_grupo5.navigation.Screen
 
@@ -35,7 +35,6 @@ import com.pneuma.fotomarwms_grupo5.navigation.Screen
 fun DashboardJefeScreen(
     authViewModel: AuthViewModel,
     aprobacionViewModel: AprobacionViewModel,
-    mensajeViewModel: MensajeViewModel,
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -176,16 +175,6 @@ fun DashboardJefeScreen(
                     icon = Icons.Default.CheckCircle,
                     text = "Ver Aprobaciones",
                     onClick = { onNavigate("aprobaciones") }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Enviar Mensaje
-                QuickActionButton(
-                    icon = Icons.Default.Send,
-                    text = "Enviar Mensaje",
-                    onClick = { onNavigate(Screen.EnviarMensaje.route)
-                    }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))

@@ -239,20 +239,6 @@ private fun DrawerItemsJefe(
         currentRoute = currentRoute,
         onClick = { onNavigate("aprobaciones") }
     )
-    DrawerMenuItem(
-        icon = Icons.Default.Inventory,
-        label = "Inventario",
-        route = "inventario",
-        currentRoute = currentRoute,
-        onClick = { onNavigate("inventario") }
-    )
-    DrawerMenuItem(
-        icon = Icons.Default.Email,
-        label = "Mensajes",
-        route = "mensajes",
-        currentRoute = currentRoute,
-        onClick = { onNavigate("mensajes") }
-    )
 }
 
 /**
@@ -309,20 +295,6 @@ private fun DrawerItemsOperador(
         route = "mis_solicitudes",
         currentRoute = currentRoute,
         onClick = { onNavigate("mis_solicitudes") }
-    )
-    DrawerMenuItem(
-        icon = Icons.Default.Inventory,
-        label = "Inventario",
-        route = "inventario",
-        currentRoute = currentRoute,
-        onClick = { onNavigate("inventario") }
-    )
-    DrawerMenuItem(
-        icon = Icons.Default.Email,
-        label = "Mensajes",
-        route = "mensajes",
-        currentRoute = currentRoute,
-        onClick = { onNavigate("mensajes") }
     )
 }
 
