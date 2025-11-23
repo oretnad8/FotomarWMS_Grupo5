@@ -2,7 +2,7 @@ package com.pneuma.fotomarwms_grupo5.ui.screen.componentes
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -60,7 +60,7 @@ fun ScanUbicacionButton(
             onDismissRequest = { showError = false },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Error,
+                    imageVector = Icons.Default.Warning,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error
                 )

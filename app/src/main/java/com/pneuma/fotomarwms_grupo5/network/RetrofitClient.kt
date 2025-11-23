@@ -104,12 +104,4 @@ object RetrofitClient {
     val aprobacionesService: AprobacionesApiService by lazy {
         createRetrofit(BASE_URL_APROBACIONES).create(AprobacionesApiService::class.java)
     }
-
-    val mensajesService: MensajesApiService by lazy {
-        createRetrofit(BASE_URL_MENSAJES).create(MensajesApiService::class.java)
-    }
-
-    val inventarioService: InventarioApiService by lazy {
-        createRetrofit(BASE_URL_INVENTARIO).create(InventarioApiService::class.java)
-    }
 }
