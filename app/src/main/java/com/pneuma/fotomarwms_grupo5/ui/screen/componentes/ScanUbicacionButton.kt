@@ -16,28 +16,42 @@ import com.pneuma.fotomarwms_grupo5.models.UbicacionFormatter
  * @param onUbicacionScanned Callback cuando se detecta una ubicación válida
  * @param label Etiqueta del botón
  * @param modifier Modificador de composable
+ * @param isFullWidth Si true, el botón ocupa todo el ancho disponible
  */
 @Composable
 fun ScanUbicacionButton(
     onUbicacionScanned: (String) -> Unit,
     label: String = "Escanear Ubicación",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isFullWidth: Boolean = false
 ) {
     var showBarcodeScanner by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
-    OutlinedButton(
+    // Botón mejorado con mejor visibilidad
+    Button(
         onClick = { showBarcodeScanner = true },
-        modifier = modifier
+        modifier = if (isFullWidth) {
+            modifier.fillMaxWidth()
+        } else {
+            modifier
+        },
+        contentPadding = PaddingValues(
+            horizontal = 16.dp,
+            vertical = 12.dp
+        )
     ) {
         Icon(
             imageVector = Icons.Default.CameraAlt,
             contentDescription = null,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(label)
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge
+        )
     }
 
     // Mostrar error si es necesario
@@ -61,7 +75,7 @@ fun ScanUbicacionButton(
         )
     }
 
-    // Escáner de código de barras
+    // Escáner de código de barras a pantalla completa
     if (showBarcodeScanner) {
         BarcodeScanner(
             onBarcodeScanned = { scannedCode ->

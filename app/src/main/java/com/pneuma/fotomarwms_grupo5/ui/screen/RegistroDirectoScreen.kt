@@ -227,40 +227,35 @@ fun RegistroDirectoScreen(
                             )
 
                             // Ubicación Origen
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = idUbicacionOrigen,
-                                    onValueChange = {
-                                        idUbicacionOrigen = it
-                                        ubicacionError = null
-                                    },
-                                    label = { Text("Ubicación Origen") },
-                                    placeholder = { Text("Ej: P1-A-01") },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.LocationOn,
-                                            contentDescription = null
-                                        )
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    isError = ubicacionError != null
-                                )
+                            OutlinedTextField(
+                                value = idUbicacionOrigen,
+                                onValueChange = {
+                                    idUbicacionOrigen = it
+                                    ubicacionError = null
+                                },
+                                label = { Text("Ubicación Origen") },
+                                placeholder = { Text("Ej: P1-A-01") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                isError = ubicacionError != null
+                            )
 
-                                ScanUbicacionButton(
-                                    onUbicacionScanned = { ubicacion ->
-                                        idUbicacionOrigen = ubicacion
-                                        ubicacionError = null
-                                    },
-                                    label = "Escanear",
-                                    modifier = Modifier.size(56.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            ScanUbicacionButton(
+                                onUbicacionScanned = { ubicacion ->
+                                    idUbicacionOrigen = ubicacion
+                                    ubicacionError = null
+                                },
+                                label = "Escanear Ubicación Origen",
+                                isFullWidth = true
+                            )
 
                             if (ubicacionError != null) {
                                 Text(
@@ -272,40 +267,35 @@ fun RegistroDirectoScreen(
                             }
 
                             // Ubicación Destino
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = idUbicacionDestino,
-                                    onValueChange = {
-                                        idUbicacionDestino = it
-                                        ubicacionError = null
-                                    },
-                                    label = { Text("Ubicación Destino") },
-                                    placeholder = { Text("Ej: P2-B-05") },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.LocationOn,
-                                            contentDescription = null
-                                        )
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    isError = ubicacionError != null
-                                )
+                            OutlinedTextField(
+                                value = idUbicacionDestino,
+                                onValueChange = {
+                                    idUbicacionDestino = it
+                                    ubicacionError = null
+                                },
+                                label = { Text("Ubicación Destino") },
+                                placeholder = { Text("Ej: P2-B-05") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                isError = ubicacionError != null
+                            )
 
-                                ScanUbicacionButton(
-                                    onUbicacionScanned = { ubicacion ->
-                                        idUbicacionDestino = ubicacion
-                                        ubicacionError = null
-                                    },
-                                    label = "Escanear",
-                                    modifier = Modifier.size(56.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            ScanUbicacionButton(
+                                onUbicacionScanned = { ubicacion ->
+                                    idUbicacionDestino = ubicacion
+                                    ubicacionError = null
+                                },
+                                label = "Escanear Ubicación Destino",
+                                isFullWidth = true
+                            )
 
                             Spacer(modifier = Modifier.height(16.dp))
                         }
@@ -319,40 +309,35 @@ fun RegistroDirectoScreen(
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = ubicacionIngreso,
-                                    onValueChange = {
-                                        ubicacionIngreso = it
-                                        ubicacionError = null
-                                    },
-                                    label = { Text("Ubicación") },
-                                    placeholder = { Text("Ej: P1-A-01") },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.LocationOn,
-                                            contentDescription = null
-                                        )
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    isError = ubicacionError != null
-                                )
+                            OutlinedTextField(
+                                value = ubicacionIngreso,
+                                onValueChange = {
+                                    ubicacionIngreso = it
+                                    ubicacionError = null
+                                },
+                                label = { Text("Ubicación") },
+                                placeholder = { Text("Ej: P1-A-01") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                isError = ubicacionError != null
+                            )
 
-                                ScanUbicacionButton(
-                                    onUbicacionScanned = { ubicacion ->
-                                        ubicacionIngreso = ubicacion
-                                        ubicacionError = null
-                                    },
-                                    label = "Escanear",
-                                    modifier = Modifier.size(56.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            ScanUbicacionButton(
+                                onUbicacionScanned = { ubicacion ->
+                                    ubicacionIngreso = ubicacion
+                                    ubicacionError = null
+                                },
+                                label = "Escanear Ubicación de Ingreso",
+                                isFullWidth = true
+                            )
 
                             if (ubicacionError != null) {
                                 Text(
@@ -375,40 +360,35 @@ fun RegistroDirectoScreen(
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = ubicacionEgreso,
-                                    onValueChange = {
-                                        ubicacionEgreso = it
-                                        ubicacionError = null
-                                    },
-                                    label = { Text("Ubicación") },
-                                    placeholder = { Text("Ej: P1-A-01") },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.LocationOn,
-                                            contentDescription = null
-                                        )
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    isError = ubicacionError != null
-                                )
+                            OutlinedTextField(
+                                value = ubicacionEgreso,
+                                onValueChange = {
+                                    ubicacionEgreso = it
+                                    ubicacionError = null
+                                },
+                                label = { Text("Ubicación") },
+                                placeholder = { Text("Ej: P1-A-01") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                isError = ubicacionError != null
+                            )
 
-                                ScanUbicacionButton(
-                                    onUbicacionScanned = { ubicacion ->
-                                        ubicacionEgreso = ubicacion
-                                        ubicacionError = null
-                                    },
-                                    label = "Escanear",
-                                    modifier = Modifier.size(56.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            ScanUbicacionButton(
+                                onUbicacionScanned = { ubicacion ->
+                                    ubicacionEgreso = ubicacion
+                                    ubicacionError = null
+                                },
+                                label = "Escanear Ubicación de Egreso",
+                                isFullWidth = true
+                            )
 
                             if (ubicacionError != null) {
                                 Text(
