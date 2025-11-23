@@ -11,6 +11,7 @@ import com.pneuma.fotomarwms_grupo5.network.AprobarRequest
 import com.pneuma.fotomarwms_grupo5.network.RechazarRequest
 import com.pneuma.fotomarwms_grupo5.network.AprobacionResponse
 import com.pneuma.fotomarwms_grupo5.network.AprobacionRequest as NetworkAprobacionRequest
+import com.pneuma.fotomarwms_grupo5.network.AsignarUbicacionRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

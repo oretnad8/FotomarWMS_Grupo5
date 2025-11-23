@@ -185,6 +185,23 @@ fun AprobacionCard(
 }
 
 /**
+ * Card para mostrar una solicitud (alias de AprobacionCard)
+ * Usado en MisSolicitudesScreen
+ */
+@Composable
+fun SolicitudCard(
+    solicitud: Aprobacion,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AprobacionCard(
+        aprobacion = solicitud,
+        onClick = onClick,
+        modifier = modifier
+    )
+}
+
+/**
  * Card para mostrar una ubicación
  */
 @Composable
