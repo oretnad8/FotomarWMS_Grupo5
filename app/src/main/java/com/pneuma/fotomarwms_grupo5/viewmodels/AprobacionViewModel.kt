@@ -12,6 +12,7 @@ import com.pneuma.fotomarwms_grupo5.network.RechazarRequest
 import com.pneuma.fotomarwms_grupo5.network.AprobacionResponse
 import com.pneuma.fotomarwms_grupo5.network.AprobacionRequest as NetworkAprobacionRequest
 import com.pneuma.fotomarwms_grupo5.network.AsignarUbicacionRequest
+import com.pneuma.fotomarwms_grupo5.services.UbicacionService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +29,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
     private val solicitudMovimientoDao = AppDatabase.getDatabase(application).solicitudMovimientoDao()
     private val apiService = RetrofitClient.aprobacionesService
     private val usuariosService = RetrofitClient.usuariosService
+    private val ubicacionService = UbicacionService(application)
 
     // ========== ESTADOS ==========
 
@@ -180,6 +182,16 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 _createSolicitudState.value = UiState.Loading
 
+                // Convertir codigo de ubicacion a ID
+                val idDestino = ubicacionService.getIdUbicacionByCodigo(ubicacionDestino)
+
+                if (idDestino == null) {
+                    _createSolicitudState.value = UiState.Error(
+                        message = "No se pudo obtener el ID de la ubicacion. Verifica que el codigo sea valido."
+                    )
+                    return@launch
+                }
+
                 // 1. Guardar localmente
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "INGRESO",
@@ -187,7 +199,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     cantidad = cantidad,
                     motivo = motivo,
                     idUbicacionOrigen = null,
-                    idUbicacionDestino = null, // TODO: Convertir ubicacionDestino (String) a ID
+                    idUbicacionDestino = idDestino,
                     timestamp = System.currentTimeMillis()
                 )
                 val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
@@ -200,7 +212,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                         cantidad = cantidad,
                         motivo = motivo,
                         idUbicacionOrigen = null,
-                        idUbicacionDestino = null // TODO: Convertir ubicacionDestino a ID
+                        idUbicacionDestino = idDestino
                     )
                     val response = apiService.createAprobacion(request)
                     
@@ -236,12 +248,22 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 _createSolicitudState.value = UiState.Loading
 
+                // Convertir codigo de ubicacion a ID
+                val idOrigen = ubicacionService.getIdUbicacionByCodigo(ubicacionOrigen)
+
+                if (idOrigen == null) {
+                    _createSolicitudState.value = UiState.Error(
+                        message = "No se pudo obtener el ID de la ubicacion. Verifica que el codigo sea valido."
+                    )
+                    return@launch
+                }
+
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "EGRESO",
                     sku = sku,
                     cantidad = cantidad,
                     motivo = motivo,
-                    idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen (String) a ID
+                    idUbicacionOrigen = idOrigen,
                     idUbicacionDestino = null,
                     timestamp = System.currentTimeMillis()
                 )
@@ -253,7 +275,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                         sku = sku,
                         cantidad = cantidad,
                         motivo = motivo,
-                        idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen a ID
+                        idUbicacionOrigen = idOrigen,
                         idUbicacionDestino = null
                     )
                     val response = apiService.createAprobacion(request)
@@ -289,13 +311,24 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 _createSolicitudState.value = UiState.Loading
 
+                // Convertir codigos de ubicacion a IDs
+                val idOrigen = ubicacionService.getIdUbicacionByCodigo(ubicacionOrigen)
+                val idDestino = ubicacionService.getIdUbicacionByCodigo(ubicacionDestino)
+
+                if (idOrigen == null || idDestino == null) {
+                    _createSolicitudState.value = UiState.Error(
+                        message = "No se pudo obtener los IDs de las ubicaciones. Verifica que los codigos sean validos."
+                    )
+                    return@launch
+                }
+
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "REUBICACION",
                     sku = sku,
                     cantidad = cantidad,
                     motivo = motivo,
-                    idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen (String) a ID
-                    idUbicacionDestino = null, // TODO: Convertir ubicacionDestino (String) a ID
+                    idUbicacionOrigen = idOrigen,
+                    idUbicacionDestino = idDestino,
                     timestamp = System.currentTimeMillis()
                 )
                 val localId = solicitudMovimientoDao.insertarSolicitud(solicitudLocal)
@@ -306,8 +339,8 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                         sku = sku,
                         cantidad = cantidad,
                         motivo = motivo,
-                        idUbicacionOrigen = null, // TODO: Convertir ubicacionOrigen a ID
-                        idUbicacionDestino = null // TODO: Convertir ubicacionDestino a ID
+                        idUbicacionOrigen = idOrigen,
+                        idUbicacionDestino = idDestino
                     )
                     val response = apiService.createAprobacion(request)
                     
