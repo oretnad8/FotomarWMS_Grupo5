@@ -30,6 +30,12 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
     private val apiService = RetrofitClient.aprobacionesService
     private val usuariosService = RetrofitClient.usuariosService
     private val ubicacionService = UbicacionService(application)
+    private val prefs = application.getSharedPreferences("auth", android.content.Context.MODE_PRIVATE)
+    
+    // Obtener ID del usuario actual desde SharedPreferences
+    private fun getCurrentUserId(): Int {
+        return prefs.getInt("userId", -1)
+    }
 
     // ========== ESTADOS ==========
 
@@ -192,6 +198,15 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     return@launch
                 }
 
+                // Obtener ID del solicitante
+                val idSolicitante = getCurrentUserId()
+                if (idSolicitante == -1) {
+                    _createSolicitudState.value = UiState.Error(
+                        message = "Error: No se pudo obtener el ID del usuario."
+                    )
+                    return@launch
+                }
+
                 // 1. Guardar localmente
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "INGRESO",
@@ -212,7 +227,8 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                         cantidad = cantidad,
                         motivo = motivo,
                         idUbicacionOrigen = null,
-                        idUbicacionDestino = idDestino
+                        idUbicacionDestino = idDestino,
+                        idSolicitante = idSolicitante
                     )
                     val response = apiService.createAprobacion(request)
                     
@@ -258,6 +274,15 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     return@launch
                 }
 
+                // Obtener ID del solicitante
+                val idSolicitante = getCurrentUserId()
+                if (idSolicitante == -1) {
+                    _createSolicitudState.value = UiState.Error(
+                        message = "Error: No se pudo obtener el ID del usuario."
+                    )
+                    return@launch
+                }
+
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "EGRESO",
                     sku = sku,
@@ -276,7 +301,8 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                         cantidad = cantidad,
                         motivo = motivo,
                         idUbicacionOrigen = idOrigen,
-                        idUbicacionDestino = null
+                        idUbicacionDestino = null,
+                        idSolicitante = idSolicitante
                     )
                     val response = apiService.createAprobacion(request)
                     
@@ -322,6 +348,15 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     return@launch
                 }
 
+                // Obtener ID del solicitante
+                val idSolicitante = getCurrentUserId()
+                if (idSolicitante == -1) {
+                    _createSolicitudState.value = UiState.Error(
+                        message = "Error: No se pudo obtener el ID del usuario."
+                    )
+                    return@launch
+                }
+
                 val solicitudLocal = SolicitudMovimientoLocal(
                     tipoMovimiento = "REUBICACION",
                     sku = sku,
@@ -340,7 +375,8 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                         cantidad = cantidad,
                         motivo = motivo,
                         idUbicacionOrigen = idOrigen,
-                        idUbicacionDestino = idDestino
+                        idUbicacionDestino = idDestino,
+                        idSolicitante = idSolicitante
                     )
                     val response = apiService.createAprobacion(request)
                     
@@ -430,8 +466,20 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     // El backend debería manejar esto
                 }
 
-                // 3. Aprobar la solicitud
-                val request = AprobarRequest(observaciones = observaciones)
+                // 3. Obtener ID del aprobador
+                val idAprobador = getCurrentUserId()
+                if (idAprobador == -1) {
+                    _respuestaState.value = UiState.Error(
+                        message = "Error: No se pudo obtener el ID del usuario aprobador."
+                    )
+                    return@launch
+                }
+
+                // 4. Aprobar la solicitud
+                val request = AprobarRequest(
+                    observaciones = observaciones,
+                    idAprobador = idAprobador
+                )
                 val response = apiService.aprobarSolicitud(id, request)
                 
                 if (response.isSuccessful && response.code() == 200) {

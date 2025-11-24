@@ -12,8 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pneuma.fotomarwms_grupo5.models.TipoMovimiento
+import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
+import com.pneuma.fotomarwms_grupo5.viewmodels.RegistroDirectoViewModel
 
 /**
  * Pantalla de Registro Directo de Movimientos
@@ -30,9 +33,12 @@ import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegistroDirectoScreen(
+    registroDirectoViewModel: RegistroDirectoViewModel,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val registroState by registroDirectoViewModel.registroState.collectAsStateWithLifecycle()
+
     // Estados del formulario
     var tipoMovimiento by rememberSaveable { mutableStateOf<TipoMovimiento?>(null) }
     var sku by rememberSaveable { mutableStateOf("") }
@@ -52,6 +58,31 @@ fun RegistroDirectoScreen(
     // Estados de UI
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    var showErrorDialog by remember { mutableStateOf(false) }
+
+    // Manejar estados de registro
+    LaunchedEffect(registroState) {
+        when (val state = registroState) {
+            is UiState.Success -> {
+                showSuccessDialog = true
+                // Limpiar formulario
+                tipoMovimiento = null
+                sku = ""
+                cantidad = ""
+                motivo = ""
+                idUbicacionOrigen = ""
+                idUbicacionDestino = ""
+                ubicacionIngreso = ""
+                ubicacionEgreso = ""
+            }
+            is UiState.Error -> {
+                errorMessage = state.message
+                showErrorDialog = true
+            }
+            else -> {}
+        }
+    }
 
     // Diálogo de confirmación
     ConfirmDialog(
@@ -59,8 +90,53 @@ fun RegistroDirectoScreen(
         message = "¿Estás seguro de registrar este movimiento? Esta acción se ejecutará inmediatamente sin necesidad de aprobación.",
         onConfirm = {
             showConfirmDialog = false
-            // TODO: Ejecutar registro directo
-            showSuccessDialog = true
+            
+            // Validar y ejecutar
+            val isValid = validarFormulario(
+                tipoMovimiento = tipoMovimiento,
+                sku = sku,
+                cantidad = cantidad,
+                motivo = motivo,
+                idUbicacionOrigen = idUbicacionOrigen,
+                idUbicacionDestino = idUbicacionDestino,
+                ubicacionIngreso = ubicacionIngreso,
+                ubicacionEgreso = ubicacionEgreso,
+                onSkuError = { skuError = it },
+                onCantidadError = { cantidadError = it },
+                onMotivoError = { motivoError = it },
+                onUbicacionError = { ubicacionError = it }
+            )
+
+            if (isValid) {
+                when (tipoMovimiento) {
+                    TipoMovimiento.INGRESO -> {
+                        registroDirectoViewModel.registrarIngreso(
+                            sku = sku,
+                            cantidad = cantidad.toInt(),
+                            ubicacionDestino = ubicacionIngreso,
+                            motivo = motivo
+                        )
+                    }
+                    TipoMovimiento.EGRESO -> {
+                        registroDirectoViewModel.registrarEgreso(
+                            sku = sku,
+                            cantidad = cantidad.toInt(),
+                            ubicacionOrigen = ubicacionEgreso,
+                            motivo = motivo
+                        )
+                    }
+                    TipoMovimiento.REUBICACION -> {
+                        registroDirectoViewModel.registrarReubicacion(
+                            sku = sku,
+                            cantidad = cantidad.toInt(),
+                            ubicacionOrigen = idUbicacionOrigen,
+                            ubicacionDestino = idUbicacionDestino,
+                            motivo = motivo
+                        )
+                    }
+                    else -> {}
+                }
+            }
         },
         onDismiss = { showConfirmDialog = false },
         showDialog = showConfirmDialog,
@@ -74,17 +150,20 @@ fun RegistroDirectoScreen(
         message = "El movimiento ha sido registrado exitosamente en el sistema.",
         onDismiss = {
             showSuccessDialog = false
-            // Limpiar formulario
-            tipoMovimiento = null
-            sku = ""
-            cantidad = ""
-            motivo = ""
-            idUbicacionOrigen = ""
-            idUbicacionDestino = ""
-            ubicacionIngreso = ""
-            ubicacionEgreso = ""
+            registroDirectoViewModel.clearState()
+            onNavigateBack()
         },
         showDialog = showSuccessDialog
+    )
+
+    // Diálogo de error
+    ErrorDialog(
+        message = errorMessage,
+        onDismiss = {
+            showErrorDialog = false
+            registroDirectoViewModel.clearState()
+        },
+        showDialog = showErrorDialog
     )
 
     Scaffold(
@@ -102,382 +181,277 @@ fun RegistroDirectoScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // ========== ALERTA DE PRIVILEGIO ==========
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFE3F2FD)
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = Color(0xFF1976D2)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Registro sin Aprobación",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1976D2)
-                        )
-                        Text(
-                            text = "Como Jefe de Bodega, puedes registrar movimientos que se ejecutarán inmediatamente sin necesidad de aprobación.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            // ========== SELECCIÓN DE TIPO DE MOVIMIENTO ==========
+            // Seleccionar tipo de movimiento
             Text(
                 text = "Tipo de Movimiento",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    text = "Ingreso",
-                    selected = tipoMovimiento == TipoMovimiento.INGRESO,
-                    onClick = { tipoMovimiento = TipoMovimiento.INGRESO },
-                    modifier = Modifier.weight(1f)
-                )
+                TipoMovimiento.values().forEach { tipo ->
+                    FilterChip(
+                        selected = tipoMovimiento == tipo,
+                        onClick = { tipoMovimiento = tipo },
+                        label = { Text(tipo.label) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
 
-                FilterChip(
-                    text = "Egreso",
-                    selected = tipoMovimiento == TipoMovimiento.EGRESO,
-                    onClick = { tipoMovimiento = TipoMovimiento.EGRESO },
-                    modifier = Modifier.weight(1f)
-                )
+            // Campos comunes
+            OutlinedTextField(
+                value = sku,
+                onValueChange = { sku = it; skuError = null },
+                label = { Text("SKU") },
+                isError = skuError != null,
+                supportingText = { if (skuError != null) Text(skuError!!) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            )
 
-                FilterChip(
-                    text = "Reubicación",
-                    selected = tipoMovimiento == TipoMovimiento.REUBICACION,
-                    onClick = { tipoMovimiento = TipoMovimiento.REUBICACION },
-                    modifier = Modifier.weight(1f)
-                )
+            OutlinedTextField(
+                value = cantidad,
+                onValueChange = { cantidad = it; cantidadError = null },
+                label = { Text("Cantidad") },
+                isError = cantidadError != null,
+                supportingText = { if (cantidadError != null) Text(cantidadError!!) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            )
+
+            OutlinedTextField(
+                value = motivo,
+                onValueChange = { motivo = it; motivoError = null },
+                label = { Text("Motivo") },
+                isError = motivoError != null,
+                supportingText = { if (motivoError != null) Text(motivoError!!) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            )
+
+            // Campos según tipo de movimiento
+            when (tipoMovimiento) {
+                TipoMovimiento.INGRESO -> {
+                    Text(
+                        text = "Ubicación de Destino",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    ScanUbicacionButton(
+                        onUbicacionScanned = { codigo ->
+                            ubicacionIngreso = codigo
+                            ubicacionError = null
+                        },
+                        isFullWidth = true
+                    )
+
+                    OutlinedTextField(
+                        value = ubicacionIngreso,
+                        onValueChange = { ubicacionIngreso = it; ubicacionError = null },
+                        label = { Text("Código de Ubicación") },
+                        isError = ubicacionError != null,
+                        supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 12.dp)
+                    )
+                }
+
+                TipoMovimiento.EGRESO -> {
+                    Text(
+                        text = "Ubicación de Origen",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    ScanUbicacionButton(
+                        onUbicacionScanned = { codigo ->
+                            ubicacionEgreso = codigo
+                            ubicacionError = null
+                        },
+                        isFullWidth = true
+                    )
+
+                    OutlinedTextField(
+                        value = ubicacionEgreso,
+                        onValueChange = { ubicacionEgreso = it; ubicacionError = null },
+                        label = { Text("Código de Ubicación") },
+                        isError = ubicacionError != null,
+                        supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 12.dp)
+                    )
+                }
+
+                TipoMovimiento.REUBICACION -> {
+                    Text(
+                        text = "Ubicación de Origen",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    ScanUbicacionButton(
+                        onUbicacionScanned = { codigo ->
+                            idUbicacionOrigen = codigo
+                            ubicacionError = null
+                        },
+                        isFullWidth = true
+                    )
+
+                    OutlinedTextField(
+                        value = idUbicacionOrigen,
+                        onValueChange = { idUbicacionOrigen = it; ubicacionError = null },
+                        label = { Text("Código de Ubicación") },
+                        isError = ubicacionError != null,
+                        supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Ubicación de Destino",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    ScanUbicacionButton(
+                        onUbicacionScanned = { codigo ->
+                            idUbicacionDestino = codigo
+                            ubicacionError = null
+                        },
+                        isFullWidth = true
+                    )
+
+                    OutlinedTextField(
+                        value = idUbicacionDestino,
+                        onValueChange = { idUbicacionDestino = it; ubicacionError = null },
+                        label = { Text("Código de Ubicación") },
+                        isError = ubicacionError != null,
+                        supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 12.dp)
+                    )
+                }
+
+                else -> {}
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ========== FORMULARIO ==========
-            if (tipoMovimiento != null) {
-                Card(
+            // Botón de envío
+            Button(
+                onClick = { showConfirmDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                enabled = registroState !is UiState.Loading && tipoMovimiento != null
+            ) {
+                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Text("Registrar Movimiento")
+            }
+
+            // Indicador de carga
+            if (registroState is UiState.Loading) {
+                Spacer(modifier = Modifier.height(16.dp))
+                LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Datos del Movimiento",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-
-                        AppTextField(
-                            value = sku,
-                            onValueChange = {
-                                sku = it.uppercase()
-                                skuError = null
-                            },
-                            label = "SKU del Producto",
-                            placeholder = "Ej: AP30001",
-                            leadingIcon = Icons.Default.Inventory,
-                            isError = skuError != null,
-                            errorMessage = skuError
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        NumberTextField(
-                            value = cantidad,
-                            onValueChange = {
-                                cantidad = it
-                                cantidadError = null
-                            },
-                            label = "Cantidad",
-                            placeholder = "0",
-                            isError = cantidadError != null,
-                            errorMessage = cantidadError,
-                            leadingIcon = Icons.Default.Numbers
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // ========== REUBICACIÓN ==========
-                        if (tipoMovimiento == TipoMovimiento.REUBICACION) {
-                            Text(
-                                text = "Ubicaciones",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            // Ubicación Origen
-                            OutlinedTextField(
-                                value = idUbicacionOrigen,
-                                onValueChange = {
-                                    idUbicacionOrigen = it
-                                    ubicacionError = null
-                                },
-                                label = { Text("Ubicación Origen") },
-                                placeholder = { Text("Ej: P1-A-01") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                isError = ubicacionError != null
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            ScanUbicacionButton(
-                                onUbicacionScanned = { ubicacion ->
-                                    idUbicacionOrigen = ubicacion
-                                    ubicacionError = null
-                                },
-                                label = "Escanear Ubicación Origen",
-                                isFullWidth = true
-                            )
-
-                            if (ubicacionError != null) {
-                                Text(
-                                    text = ubicacionError!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
-                                )
-                            }
-
-                            // Ubicación Destino
-                            OutlinedTextField(
-                                value = idUbicacionDestino,
-                                onValueChange = {
-                                    idUbicacionDestino = it
-                                    ubicacionError = null
-                                },
-                                label = { Text("Ubicación Destino") },
-                                placeholder = { Text("Ej: P2-B-05") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                isError = ubicacionError != null
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            ScanUbicacionButton(
-                                onUbicacionScanned = { ubicacion ->
-                                    idUbicacionDestino = ubicacion
-                                    ubicacionError = null
-                                },
-                                label = "Escanear Ubicación Destino",
-                                isFullWidth = true
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        // ========== INGRESO ==========
-                        if (tipoMovimiento == TipoMovimiento.INGRESO) {
-                            Text(
-                                text = "Ubicación de Ingreso",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            OutlinedTextField(
-                                value = ubicacionIngreso,
-                                onValueChange = {
-                                    ubicacionIngreso = it
-                                    ubicacionError = null
-                                },
-                                label = { Text("Ubicación") },
-                                placeholder = { Text("Ej: P1-A-01") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                isError = ubicacionError != null
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            ScanUbicacionButton(
-                                onUbicacionScanned = { ubicacion ->
-                                    ubicacionIngreso = ubicacion
-                                    ubicacionError = null
-                                },
-                                label = "Escanear Ubicación de Ingreso",
-                                isFullWidth = true
-                            )
-
-                            if (ubicacionError != null) {
-                                Text(
-                                    text = ubicacionError!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        // ========== EGRESO ==========
-                        if (tipoMovimiento == TipoMovimiento.EGRESO) {
-                            Text(
-                                text = "Ubicación de Egreso",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            OutlinedTextField(
-                                value = ubicacionEgreso,
-                                onValueChange = {
-                                    ubicacionEgreso = it
-                                    ubicacionError = null
-                                },
-                                label = { Text("Ubicación") },
-                                placeholder = { Text("Ej: P1-A-01") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                isError = ubicacionError != null
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            ScanUbicacionButton(
-                                onUbicacionScanned = { ubicacion ->
-                                    ubicacionEgreso = ubicacion
-                                    ubicacionError = null
-                                },
-                                label = "Escanear Ubicación de Egreso",
-                                isFullWidth = true
-                            )
-
-                            if (ubicacionError != null) {
-                                Text(
-                                    text = ubicacionError!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        MultilineTextField(
-                            value = motivo,
-                            onValueChange = {
-                                motivo = it
-                                motivoError = null
-                            },
-                            label = "Motivo del Movimiento",
-                            placeholder = "Describe el motivo...",
-                            minLines = 3,
-                            maxLines = 5
-                        )
-
-                        if (motivoError != null) {
-                            Text(
-                                text = motivoError!!,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // ========== BOTÓN REGISTRAR ==========
-                PrimaryButton(
-                    text = "Registrar Movimiento",
-                    onClick = {
-                        // Validar formulario
-                        var isValid = true
-
-                        if (sku.isBlank()) {
-                            skuError = "El SKU es obligatorio"
-                            isValid = false
-                        }
-
-                        if (cantidad.isBlank() || cantidad.toIntOrNull() == null || cantidad.toInt() <= 0) {
-                            cantidadError = "Ingresa una cantidad válida"
-                            isValid = false
-                        }
-
-                        if (motivo.isBlank()) {
-                            motivoError = "El motivo es obligatorio"
-                            isValid = false
-                        }
-
-                        when (tipoMovimiento) {
-                            TipoMovimiento.REUBICACION -> {
-                                if (idUbicacionOrigen.isBlank() || idUbicacionDestino.isBlank()) {
-                                    ubicacionError = "Las ubicaciones son obligatorias"
-                                    isValid = false
-                                }
-                            }
-                            TipoMovimiento.INGRESO -> {
-                                if (ubicacionIngreso.isBlank()) {
-                                    ubicacionError = "La ubicación de ingreso es obligatoria"
-                                    isValid = false
-                                }
-                            }
-                            TipoMovimiento.EGRESO -> {
-                                if (ubicacionEgreso.isBlank()) {
-                                    ubicacionError = "La ubicación de egreso es obligatoria"
-                                    isValid = false
-                                }
-                            }
-                            else -> {}
-                        }
-
-                        if (isValid) {
-                            showConfirmDialog = true
-                        }
-                    },
-                    icon = Icons.Default.SaveAlt
                 )
             }
         }
     }
+}
+
+private fun validarFormulario(
+    tipoMovimiento: TipoMovimiento?,
+    sku: String,
+    cantidad: String,
+    motivo: String,
+    idUbicacionOrigen: String,
+    idUbicacionDestino: String,
+    ubicacionIngreso: String,
+    ubicacionEgreso: String,
+    onSkuError: (String?) -> Unit,
+    onCantidadError: (String?) -> Unit,
+    onMotivoError: (String?) -> Unit,
+    onUbicacionError: (String?) -> Unit
+): Boolean {
+    var isValid = true
+
+    // Validar SKU
+    if (sku.isBlank()) {
+        onSkuError("SKU es requerido")
+        isValid = false
+    } else {
+        onSkuError(null)
+    }
+
+    // Validar cantidad
+    if (cantidad.isBlank()) {
+        onCantidadError("Cantidad es requerida")
+        isValid = false
+    } else if (cantidad.toIntOrNull() == null || cantidad.toInt() <= 0) {
+        onCantidadError("Cantidad debe ser un número positivo")
+        isValid = false
+    } else {
+        onCantidadError(null)
+    }
+
+    // Validar motivo
+    if (motivo.isBlank()) {
+        onMotivoError("Motivo es requerido")
+        isValid = false
+    } else {
+        onMotivoError(null)
+    }
+
+    // Validar ubicaciones según tipo
+    when (tipoMovimiento) {
+        TipoMovimiento.INGRESO -> {
+            if (ubicacionIngreso.isBlank()) {
+                onUbicacionError("Ubicación de destino es requerida")
+                isValid = false
+            } else {
+                onUbicacionError(null)
+            }
+        }
+        TipoMovimiento.EGRESO -> {
+            if (ubicacionEgreso.isBlank()) {
+                onUbicacionError("Ubicación de origen es requerida")
+                isValid = false
+            } else {
+                onUbicacionError(null)
+            }
+        }
+        TipoMovimiento.REUBICACION -> {
+            if (idUbicacionOrigen.isBlank() || idUbicacionDestino.isBlank()) {
+                onUbicacionError("Ambas ubicaciones son requeridas")
+                isValid = false
+            } else {
+                onUbicacionError(null)
+            }
+        }
+        else -> {}
+    }
+
+    return isValid
 }

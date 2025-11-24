@@ -25,9 +25,18 @@ class UbicacionService(private val application: Application) {
         return withContext(Dispatchers.IO) {
             try {
                 // 1. Intentar obtener de la base de datos local
-                val ubicacionLocal = ubicacionDao.getByCodigoUbicacion(codigo)
+                val ubicacionLocal = ubicacionDao.getByCodigo(codigo)
                 if (ubicacionLocal != null) {
-                    return@withContext ubicacionLocal.idUbicacion
+                    // Calcular ID basado en la estructura: 5 pasillos × 60 posiciones × 3 pisos
+                    // ID = (pasillo - 1) * 180 + (piso_index) * 60 + (numero - 1) + 1
+                    val pisoIndex = when (ubicacionLocal.piso) {
+                        "A" -> 0
+                        "B" -> 1
+                        "C" -> 2
+                        else -> 0
+                    }
+                    val id = (ubicacionLocal.pasillo - 1) * 180 + pisoIndex * 60 + (ubicacionLocal.numero - 1) + 1
+                    return@withContext id
                 }
 
                 // 2. Si no está en local, obtener del backend
@@ -37,8 +46,7 @@ class UbicacionService(private val application: Application) {
                     
                     // Guardar en base de datos local para futuras consultas
                     val ubicacionLocal = UbicacionLocal(
-                        idUbicacion = ubicacionResponse.idUbicacion,
-                        codigoUbicacion = ubicacionResponse.codigoUbicacion,
+                        codigo = ubicacionResponse.codigoUbicacion,
                         pasillo = ubicacionResponse.pasillo,
                         piso = ubicacionResponse.piso,
                         numero = ubicacionResponse.numero
@@ -61,14 +69,22 @@ class UbicacionService(private val application: Application) {
     suspend fun getCodigoUbicacionById(id: Int): String? {
         return withContext(Dispatchers.IO) {
             try {
-                // 1. Intentar obtener de la base de datos local
-                val ubicacionLocal = ubicacionDao.getById(id)
-                if (ubicacionLocal != null) {
-                    return@withContext ubicacionLocal.codigoUbicacion
+                // Calcular código basado en el ID
+                // ID = (pasillo - 1) * 180 + (piso_index) * 60 + (numero - 1) + 1
+                val idAdjusted = id - 1
+                val pasillo = (idAdjusted / 180) + 1
+                val remainder = idAdjusted % 180
+                val pisoIndex = remainder / 60
+                val numero = (remainder % 60) + 1
+                
+                val piso = when (pisoIndex) {
+                    0 -> "A"
+                    1 -> "B"
+                    2 -> "C"
+                    else -> "A"
                 }
-
-                // Si no está en local, retornar null (no hacer llamada al backend por ID)
-                null
+                
+                return@withContext "P$pasillo-$piso-${numero.toString().padStart(2, '0')}"
             } catch (e: Exception) {
                 null
             }
@@ -86,8 +102,7 @@ class UbicacionService(private val application: Application) {
                 if (response.isSuccessful && response.body() != null) {
                     val ubicaciones = response.body()!!.map { ubicacionResponse ->
                         UbicacionLocal(
-                            idUbicacion = ubicacionResponse.idUbicacion,
-                            codigoUbicacion = ubicacionResponse.codigoUbicacion,
+                            codigo = ubicacionResponse.codigoUbicacion,
                             pasillo = ubicacionResponse.pasillo,
                             piso = ubicacionResponse.piso,
                             numero = ubicacionResponse.numero
