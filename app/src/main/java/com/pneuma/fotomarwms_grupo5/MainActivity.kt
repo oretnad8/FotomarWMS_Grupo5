@@ -77,6 +77,7 @@ fun FotomarWMSApp() {
     // ViewModels que solo requieren Application
     val aprobacionViewModel: AprobacionViewModel = viewModel()
     val usuarioViewModel: UsuarioViewModel = viewModel()
+    val registroDirectoViewModel: RegistroDirectoViewModel = viewModel()
 
     // Layout base
     Scaffold(
@@ -279,6 +280,7 @@ fun FotomarWMSApp() {
             // Registro directo (Jefe/Supervisor)
             composable(route = Screen.RegistroDirecto.route) {
                 RegistroDirectoScreen(
+                    registroDirectoViewModel = registroDirectoViewModel,
                     onNavigateBack = {
                         navController.popBackStack()
                     }

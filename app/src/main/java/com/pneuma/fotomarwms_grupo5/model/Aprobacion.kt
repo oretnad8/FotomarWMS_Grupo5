@@ -29,10 +29,10 @@ data class Aprobacion(
 /**
  * Enum para tipos de movimiento
  */
-enum class TipoMovimiento {
-    INGRESO,   // Nueva entrada de productos
-    EGRESO,    // Salida de productos
-    REUBICACION // Cambio de ubicación
+enum class TipoMovimiento(val label: String) {
+    INGRESO("Ingreso"),   // Nueva entrada de productos
+    EGRESO("Egreso"),    // Salida de productos
+    REUBICACION("Reubicacion") // Cambio de ubicación
 }
 
 /**
@@ -52,6 +52,7 @@ data class AprobacionRequest(
     val sku: String,
     val cantidad: Int,
     val motivo: String,
+    val idSolicitante: Int? = null, // ID del usuario que solicita
     // Solo para REUBICACION:
     val idUbicacionOrigen: Int? = null,
     val idUbicacionDestino: Int? = null
@@ -62,4 +63,12 @@ data class AprobacionRequest(
  */
 data class RespuestaAprobacionRequest(
     val observaciones: String? = null
+)
+
+/**
+ * Request para aprobar una solicitud (con ID del aprobador)
+ */
+data class AprobarRequestWithAprobador(
+    val observaciones: String? = null,
+    val idAprobador: Int? = null
 )

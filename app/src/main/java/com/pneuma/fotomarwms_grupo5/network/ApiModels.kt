@@ -138,7 +138,8 @@ data class AprobacionResponse(
 )
 
 data class AprobarRequest(
-    val observaciones: String?
+    val observaciones: String? = null,
+    val idAprobador: Int? = null
 )
 
 data class RechazarRequest(
