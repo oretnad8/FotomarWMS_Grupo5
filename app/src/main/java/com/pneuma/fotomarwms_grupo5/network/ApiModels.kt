@@ -120,6 +120,7 @@ data class AprobacionRequest(
     val sku: String,
     val cantidad: Int,
     val motivo: String,
+    val idSolicitante: Int? = null,
     val idUbicacionOrigen: Int? = null,
     val idUbicacionDestino: Int? = null
 )
