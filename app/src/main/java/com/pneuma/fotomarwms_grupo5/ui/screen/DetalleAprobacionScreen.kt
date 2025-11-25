@@ -12,10 +12,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pneuma.fotomarwms_grupo5.models.EstadoAprobacion
+import com.pneuma.fotomarwms_grupo5.models.Rol
 import com.pneuma.fotomarwms_grupo5.models.TipoMovimiento
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 import com.pneuma.fotomarwms_grupo5.viewmodels.AprobacionViewModel
+import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 
 /**
  * Pantalla de Detalle de Aprobación
@@ -31,6 +33,7 @@ import com.pneuma.fotomarwms_grupo5.viewmodels.AprobacionViewModel
 fun DetalleAprobacionScreen(
     aprobacionId: Int,
     aprobacionViewModel: AprobacionViewModel,
+    authViewModel: AuthViewModel,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -38,6 +41,10 @@ fun DetalleAprobacionScreen(
     val aprobacionDetailState by aprobacionViewModel.aprobacionDetailState.collectAsStateWithLifecycle()
     val selectedAprobacion by aprobacionViewModel.selectedAprobacion.collectAsStateWithLifecycle()
     val respuestaState by aprobacionViewModel.respuestaState.collectAsStateWithLifecycle()
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+    
+    // Verificar si el usuario puede aprobar/rechazar (solo JEFE y SUPERVISOR)
+    val canApprove = currentUser?.rol == Rol.JEFE || currentUser?.rol == Rol.SUPERVISOR
 
     // Estados de UI
     var showAprobarDialog by remember { mutableStateOf(false) }
@@ -308,7 +315,8 @@ fun DetalleAprobacionScreen(
                         }
 
                         // ========== BOTONES DE ACCIÓN ==========
-                        if (aprobacion.estado == EstadoAprobacion.PENDIENTE) {
+                        // Solo mostrar botones si el usuario es JEFE o SUPERVISOR
+                        if (aprobacion.estado == EstadoAprobacion.PENDIENTE && canApprove) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)

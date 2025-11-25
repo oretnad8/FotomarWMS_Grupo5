@@ -113,6 +113,21 @@ data class AsignarUbicacionRequest(
     val cantidad: Int
 )
 
+data class EgresoUbicacionRequest(
+    val sku: String,
+    val codigoUbicacion: String,
+    val cantidad: Int,
+    val motivo: String? = null
+)
+
+data class ReubicarUbicacionRequest(
+    val sku: String,
+    val codigoUbicacionOrigen: String,
+    val codigoUbicacionDestino: String,
+    val cantidad: Int,
+    val motivo: String? = null
+)
+
 // ========== APROBACION MODELS ==========
 
 data class AprobacionRequest(
@@ -135,7 +150,24 @@ data class AprobacionResponse(
     val idUbicacionOrigen: Int?,
     val idUbicacionDestino: Int?,
     val fechaSolicitud: String,
-    val observaciones: String?
+    val observaciones: String?,
+    val solicitante: SolicitanteDTO? = null,
+    val aprobador: AprobadorDTO? = null,
+    val fechaAprobacion: String? = null
+)
+
+data class SolicitanteDTO(
+    val id: Int,
+    val nombre: String,
+    val email: String,
+    val rol: String
+)
+
+data class AprobadorDTO(
+    val id: Int,
+    val nombre: String,
+    val email: String,
+    val rol: String
 )
 
 data class AprobarRequest(

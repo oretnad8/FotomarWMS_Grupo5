@@ -75,26 +75,28 @@ class RegistroDirectoViewModel(application: Application) : AndroidViewModel(appl
     /**
      * Registra un EGRESO directo
      * Reduce el stock del producto en la ubicación origen
-     * TODO: Implementar en el backend
      */
     fun registrarEgreso(sku: String, cantidad: Int, ubicacionOrigen: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _registroState.value = UiState.Loading
 
-                // Convertir código de ubicación a ID
-                val idOrigen = ubicacionService.getIdUbicacionByCodigo(ubicacionOrigen)
+                // Llamar al endpoint de egreso
+                val egresoRequest = EgresoUbicacionRequest(
+                    sku = sku,
+                    codigoUbicacion = ubicacionOrigen,
+                    cantidad = cantidad,
+                    motivo = motivo
+                )
+                val egresoResponse = ubicacionesService.egresoProducto(egresoRequest)
 
-                if (idOrigen == null) {
+                if (egresoResponse.isSuccessful) {
+                    _registroState.value = UiState.Success(true)
+                } else {
                     _registroState.value = UiState.Error(
-                        message = "No se pudo obtener el ID de la ubicacion. Verifica que el codigo sea valido."
+                        message = "Error al registrar egreso: ${egresoResponse.code()}"
                     )
-                    return@launch
                 }
-
-                // TODO: Llamar al endpoint de egreso del backend
-                // Por ahora, simulamos éxito
-                _registroState.value = UiState.Success(true)
 
             } catch (e: Exception) {
                 _registroState.value = UiState.Error(
@@ -107,37 +109,27 @@ class RegistroDirectoViewModel(application: Application) : AndroidViewModel(appl
     /**
      * Registra una REUBICACION directa
      * Mueve el producto de una ubicación a otra
-     * TODO: Implementar en el backend
      */
     fun registrarReubicacion(sku: String, cantidad: Int, ubicacionOrigen: String, ubicacionDestino: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _registroState.value = UiState.Loading
 
-                // Convertir códigos de ubicación a IDs
-                val idOrigen = ubicacionService.getIdUbicacionByCodigo(ubicacionOrigen)
-                val idDestino = ubicacionService.getIdUbicacionByCodigo(ubicacionDestino)
-
-                if (idOrigen == null || idDestino == null) {
-                    _registroState.value = UiState.Error(
-                        message = "No se pudo obtener los IDs de las ubicaciones. Verifica que los codigos sean validos."
-                    )
-                    return@launch
-                }
-
-                // Asignar producto a ubicación destino
-                val asignarRequest = AsignarUbicacionRequest(
+                // Llamar al endpoint de reubicación
+                val reubicarRequest = ReubicarUbicacionRequest(
                     sku = sku,
-                    codigoUbicacion = ubicacionDestino,
-                    cantidad = cantidad
+                    codigoUbicacionOrigen = ubicacionOrigen,
+                    codigoUbicacionDestino = ubicacionDestino,
+                    cantidad = cantidad,
+                    motivo = motivo
                 )
-                val asignarResponse = ubicacionesService.asignarProducto(asignarRequest)
+                val reubicarResponse = ubicacionesService.reubicarProducto(reubicarRequest)
 
-                if (asignarResponse.isSuccessful) {
+                if (reubicarResponse.isSuccessful) {
                     _registroState.value = UiState.Success(true)
                 } else {
                     _registroState.value = UiState.Error(
-                        message = "Error al registrar reubicacion: ${asignarResponse.code()}"
+                        message = "Error al registrar reubicacion: ${reubicarResponse.code()}"
                     )
                 }
 

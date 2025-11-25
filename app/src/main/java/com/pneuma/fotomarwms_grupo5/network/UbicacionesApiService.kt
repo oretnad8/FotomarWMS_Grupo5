@@ -43,10 +43,28 @@ interface UbicacionesApiService {
 
     /**
      * POST /api/ubicaciones/asignar
-     * Asignar producto a ubicación
+     * Asignar producto a ubicación (INGRESO)
      * Body: { sku, codigoUbicacion (formato P1-A-01), cantidad }
      * Roles: JEFE, SUPERVISOR, OPERADOR
      */
     @POST("api/ubicaciones/asignar")
     suspend fun asignarProducto(@Body request: AsignarUbicacionRequest): Response<Unit>
+    
+    /**
+     * POST /api/ubicaciones/egreso
+     * Registrar egreso de producto desde ubicación
+     * Body: { sku, codigoUbicacion, cantidad, motivo }
+     * Roles: JEFE, SUPERVISOR
+     */
+    @POST("api/ubicaciones/egreso")
+    suspend fun egresoProducto(@Body request: EgresoUbicacionRequest): Response<Unit>
+    
+    /**
+     * POST /api/ubicaciones/reubicar
+     * Reubicar producto de una ubicación a otra
+     * Body: { sku, codigoUbicacionOrigen, codigoUbicacionDestino, cantidad, motivo }
+     * Roles: JEFE, SUPERVISOR
+     */
+    @POST("api/ubicaciones/reubicar")
+    suspend fun reubicarProducto(@Body request: ReubicarUbicacionRequest): Response<Unit>
 }

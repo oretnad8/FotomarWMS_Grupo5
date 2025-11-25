@@ -326,6 +326,7 @@ fun FotomarWMSApp() {
                 DetalleAprobacionScreen(
                     aprobacionId = id,
                     aprobacionViewModel = aprobacionViewModel,
+                    authViewModel = authViewModel,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
