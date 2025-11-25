@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.pneuma.fotomarwms_grupo5.models.*
 import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
 import com.pneuma.fotomarwms_grupo5.network.AsignarUbicacionRequest
+import com.pneuma.fotomarwms_grupo5.network.EgresoUbicacionRequest
+import com.pneuma.fotomarwms_grupo5.network.ReubicarUbicacionRequest
 import com.pneuma.fotomarwms_grupo5.services.UbicacionService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
