@@ -27,6 +27,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * MainActivity - Actividad principal de la aplicación FotomarWMS
@@ -58,7 +59,7 @@ fun FotomarWMSApp() {
 
     // ViewModels compartidos entre pantallas
     val authViewModel: AuthViewModel = viewModel()
-    
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
     // ViewModels que requieren repositorios (usar factory)
     val productoViewModel: ProductoViewModel = viewModel(
         factory = ViewModelFactory(
@@ -79,7 +80,20 @@ fun FotomarWMSApp() {
     val usuarioViewModel: UsuarioViewModel = viewModel()
     val registroDirectoViewModel: RegistroDirectoViewModel = viewModel()
 
-    // Layout base
+    LaunchedEffect(authState) {
+        // La condición ahora usa TU clase AuthState, no la de Crashlytics
+        if (authState is com.pneuma.fotomarwms_grupo5.models.AuthState.NotAuthenticated) {
+            // Si el estado es "No Autenticado", navega al login
+            // y limpia todo el historial de navegación anterior.
+            navController.navigate(Screen.Login.route) {
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+                launchSingleTop = true
+            }
+        }
+    }
+            // Layout base
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
@@ -195,7 +209,6 @@ fun FotomarWMSApp() {
             // Búsqueda de productos
             composable(route = Screen.Busqueda.route) {
                 BusquedaScreen(
-                    authViewModel = authViewModel,
                     productoViewModel = productoViewModel,
                     onNavigateToDetail = { sku ->
                         navController.navigate("detalle_producto/$sku")
@@ -235,7 +248,6 @@ fun FotomarWMSApp() {
             // Gestión de ubicaciones
             composable(route = Screen.GestionUbicaciones.route) {
                 GestionUbicacionesScreen(
-                    authViewModel = authViewModel,
                     ubicacionViewModel = ubicacionViewModel,
                     onNavigateToDetail = { codigo ->
                         navController.navigate("detalle_ubicacion/$codigo")

@@ -195,40 +195,6 @@ fun LoginScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ========== INFORMACIÓN DE USUARIOS DE PRUEBA ==========
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "👤 Usuarios de prueba:",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    TestUserInfo("admin@fotomar.cl", "Administrador")
-                    TestUserInfo("jefe@fotomar.cl", "Jefe de Bodega")
-                    TestUserInfo("supervisor@fotomar.cl", "Supervisor")
-                    TestUserInfo("operador@fotomar.cl", "Operador")
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Contraseña: cualquiera",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
     }
 }

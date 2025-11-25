@@ -76,7 +76,6 @@ fun DashboardAdminScreen(
                 },
                 onLogout = {
                     authViewModel.logout()
-                    onNavigate("login")
                 }
             )
         }

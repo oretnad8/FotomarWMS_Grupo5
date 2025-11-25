@@ -58,7 +58,6 @@ fun DashboardJefeScreen(
                 },
                 onLogout = {
                     authViewModel.logout()
-                    onNavigate("login")
                 }
             )
         }
@@ -88,79 +87,7 @@ fun DashboardJefeScreen(
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
 
-                // ========== ALERTAS ==========
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFFF9C4) // Amarillo claro
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = Color(0xFFF57F17),
-                            modifier = Modifier.size(32.dp)
-                        )
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "⚠️ Alertas",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFF57F17)
-                            )
-                            Text(
-                                text = "3 productos con stock bajo",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                            Text(
-                                text = "5 solicitudes pendientes",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-
-                // ========== CONTADORES ==========
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Pendientes
-                    CounterCard(
-                        icon = Icons.Default.PendingActions,
-                        title = "Pendientes",
-                        count = 5,
-                        backgroundColor = Color(0xFFFFF3E0),
-                        iconColor = Color(0xFFF57C00),
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("aprobaciones") }
-                    )
-
-                    // Aprobados Hoy
-                    CounterCard(
-                        icon = Icons.Default.CheckCircle,
-                        title = "Aprobados Hoy",
-                        count = 18,
-                        backgroundColor = Color(0xFFE8F5E9),
-                        iconColor = Color(0xFF388E3C),
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("aprobaciones") }
-                    )
-                }
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // ========== ACCIONES RÁPIDAS ==========
                 Text(
@@ -193,6 +120,15 @@ fun DashboardJefeScreen(
                     icon = Icons.Default.Search,
                     text = "Buscar Producto",
                     onClick = { onNavigate("busqueda") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Ver Ubicaciones
+                QuickActionButton(
+                    icon = Icons.Default.LocationOn,
+                    text = "Ver Ubicaciones",
+                    onClick = { onNavigate("gestion_ubicaciones") },
                 )
             }
         }

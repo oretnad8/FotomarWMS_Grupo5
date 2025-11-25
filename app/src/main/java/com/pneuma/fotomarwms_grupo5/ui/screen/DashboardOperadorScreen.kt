@@ -55,7 +55,6 @@ fun DashboardOperadorScreen(
                 },
                 onLogout = {
                     authViewModel.logout()
-                    onNavigate("login")
                 }
             )
         }
@@ -91,36 +90,6 @@ fun DashboardOperadorScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-
-
-                // ========== TAREAS PENDIENTES ==========
-                Text(
-                    text = "Tareas Pendientes",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                // Tarea 1
-                TaskCard(
-                    icon = Icons.Default.Checklist,
-                    title = "Conteo físico - Sección A",
-                    description = "Realizar conteo completo de productos en estantes A-1 a A-5",
-                    priority = "ALTA",
-                    onClick = { onNavigate("busqueda") }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Tarea 2
-                TaskCard(
-                    icon = Icons.Default.LocationOn,
-                    title = "Ubicar productos recibidos",
-                    description = "Asignar ubicación a 15 productos nuevos en bodega",
-                    priority = "MEDIA",
-                    onClick = { onNavigate("gestion_ubicaciones") }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -160,11 +129,11 @@ fun DashboardOperadorScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Ver Mis Solicitudes
+                    // Ver Ubicaciones
                     QuickActionCard(
-                        icon = Icons.Default.List,
-                        text = "Mis Solicitudes",
-                        onClick = { onNavigate("mis_solicitudes") },
+                        icon = Icons.Default.LocationOn,
+                        text = "Ver Ubicaciones",
+                        onClick = { onNavigate("gestion_ubicaciones") },
                         modifier = Modifier.weight(1f)
                     )
                 }

@@ -37,10 +37,8 @@ fun AprobacionesScreen(
     modifier: Modifier = Modifier
 ) {
     // Estados
-    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val aprobacionesState by aprobacionViewModel.aprobacionesState.collectAsStateWithLifecycle()
     val estadoFiltro by aprobacionViewModel.estadoFiltro.collectAsStateWithLifecycle()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     // Cargar aprobaciones al iniciar
@@ -48,33 +46,11 @@ fun AprobacionesScreen(
         aprobacionViewModel.getAllAprobaciones()
     }
 
-    // Drawer con menú lateral
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            DrawerContent(
-                currentUser = currentUser,
-                currentRoute = "aprobaciones",
-                onNavigate = { route ->
-                    scope.launch {
-                        drawerState.close()
-                        onNavigateBack()
-                    }
-                },
-                onLogout = {
-                    authViewModel.logout()
-                    onNavigateBack()
-                }
-            )
-        }
-    ) {
-        Scaffold(
-            topBar = {
-                AppTopBar(
-                    title = "Aprobaciones",
-                    onMenuClick = {
-                        scope.launch { drawerState.open() }
-                    }
+    Scaffold(
+        topBar = {
+            BackTopBar(
+                title = "Aprobaciones",
+                onBackClick = onNavigateBack
                 )
             }
         ) { paddingValues ->
@@ -221,4 +197,3 @@ fun AprobacionesScreen(
             }
         }
     }
-}

@@ -7,6 +7,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -15,39 +17,29 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pneuma.fotomarwms_grupo5.models.Producto
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
-import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.ProductoViewModel
-import kotlinx.coroutines.launch
 
 /**
  * Pantalla de Búsqueda de Productos
- *
- * Funcionalidades:
- * - Búsqueda por cámara (escanear código de barras o LPN)
- * - Búsqueda manual por SKU, descripción o ubicación
- * - Resultados en cards separadas con botón "Ver Detalles"
- * - Filtros y ordenamiento
+ * ... (KDoc se mantiene igual)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BusquedaScreen(
-    authViewModel: AuthViewModel,
     productoViewModel: ProductoViewModel,
     onNavigateToDetail: (String) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Estados
-    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val searchState by productoViewModel.searchState.collectAsStateWithLifecycle()
     val productoDetailState by productoViewModel.productoDetailState.collectAsStateWithLifecycle()
     val searchQuery by productoViewModel.searchQuery.collectAsStateWithLifecycle()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+    // val scope = rememberCoroutineScope() // No es necesario aquí, se puede eliminar.
 
     // Estado local
     var localSearchQuery by remember { mutableStateOf("") }
-    var showScanDialog by remember { mutableStateOf(false) }
+    var showScanDialog by remember { mutableStateOf(false) } // Este estado no se usa, pero lo dejamos por si acaso.
     var showScanner by remember { mutableStateOf(false) }
 
     // Efecto para navegar cuando se encuentra un solo producto por código de barras
@@ -55,230 +47,207 @@ fun BusquedaScreen(
         if (productoDetailState is UiState.Success) {
             val producto = (productoDetailState as UiState.Success<Producto>).data
             onNavigateToDetail(producto.sku)
-            // Limpiar el estado para evitar la re-navegación si la pantalla se recompone
             productoViewModel.clearSelectedProducto()
         }
     }
 
-    // Drawer con menú lateral
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            DrawerContent(
-                currentUser = currentUser,
-                currentRoute = "busqueda",
-                onNavigate = { route ->
-                    scope.launch {
-                        drawerState.close()
-                        onNavigateBack()
-                    }
-                },
-                onLogout = {
-                    authViewModel.logout()
-                    onNavigateBack()
-                }
+
+    Scaffold(
+        topBar = {
+            BackTopBar(
+                title = "Buscar Producto",
+                onBackClick = onNavigateBack // Pasamos la acción para volver atrás
             )
         }
-    ) {
-        Scaffold(
-            topBar = {
-                AppTopBar(
-                    title = "Buscar Producto",
-                    onMenuClick = {
-                        scope.launch { drawerState.open() }
-                    }
-                )
-            }
-        ) { paddingValues ->
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // ========== SECCIÓN DE BÚSQUEDA ==========
             Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // ========== SECCIÓN DE BÚSQUEDA ==========
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                // Botón grande de cámara
+                Card(
+                    onClick = {
+                        showScanner = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
                 ) {
-                    // Botón grande de cámara
-                    Card(
-                        onClick = {
-                            showScanner = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = "Escanear",
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Escanear",
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                            Text(
-                                text = "Escanear Código",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-
-                            Text(
-                                text = "Toca para usar la cámara",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Divider con texto
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HorizontalDivider(modifier = Modifier.weight(1f))
                         Text(
-                            text = "o realizar búsqueda manual",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            text = "Escanear Código",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        HorizontalDivider(modifier = Modifier.weight(1f))
+
+                        Text(
+                            text = "Toca para usar la cámara",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Campo de búsqueda manual
-                    SearchTextField(
-                        value = localSearchQuery,
-                        onValueChange = { localSearchQuery = it },
-                        placeholder = "SKU, descripción, código de barras...",
-                        onSearch = {
-                            productoViewModel.searchProductos(localSearchQuery)
-                        },
-                        onClear = {
-                            localSearchQuery = ""
-                            productoViewModel.clearSearch()
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Botón de búsqueda
-                    PrimaryButton(
-                        text = "Buscar",
-                        onClick = {
-                            productoViewModel.searchProductos(localSearchQuery)
-                        },
-                        icon = Icons.Default.Search,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
 
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // ========== RESULTADOS DE BÚSQUEDA ==========
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
+                // Divider con texto
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    when {
-                        // Cuando se busca por barcode, el detalle puede cargarse directamente.
-                        productoDetailState is UiState.Loading -> {
-                            LoadingState(message = "Obteniendo detalle del producto...")
-                        }
-                        productoDetailState is UiState.Error -> {
-                            ErrorState(
-                                message = (productoDetailState as UiState.Error).message,
-                                onRetry = {
-                                    if (localSearchQuery.isNotBlank()) {
-                                        productoViewModel.searchByBarcode(localSearchQuery)
-                                    }
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "o realizar búsqueda manual",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Campo de búsqueda manual
+                SearchTextField(
+                    value = localSearchQuery,
+                    onValueChange = { localSearchQuery = it },
+                    placeholder = "SKU, descripción, código de barras...",
+                    onSearch = {
+                        productoViewModel.searchProductos(localSearchQuery)
+                    },
+                    onClear = {
+                        localSearchQuery = ""
+                        productoViewModel.clearSearch()
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Botón de búsqueda
+                PrimaryButton(
+                    text = "Buscar",
+                    onClick = {
+                        productoViewModel.searchProductos(localSearchQuery)
+                    },
+                    icon = Icons.Default.Search,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            HorizontalDivider()
+
+            // ========== RESULTADOS DE BÚSQUEDA ==========
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+            ) {
+                when {
+                    // Cuando se busca por barcode, el detalle puede cargarse directamente.
+                    productoDetailState is UiState.Loading -> {
+                        LoadingState(message = "Obteniendo detalle del producto...")
+                    }
+                    productoDetailState is UiState.Error -> {
+                        ErrorState(
+                            message = (productoDetailState as UiState.Error).message,
+                            onRetry = {
+                                if (localSearchQuery.isNotBlank()) {
+                                    productoViewModel.searchByBarcode(localSearchQuery)
                                 }
-                            )
-                        }
-                        // Lógica original para la lista de búsqueda
-                        else -> {
-                            when (val state = searchState) {
-                                is UiState.Idle -> {
+                            }
+                        )
+                    }
+                    // Lógica original para la lista de búsqueda
+                    else -> {
+                        when (val state = searchState) {
+                            is UiState.Idle -> {
+                                EmptyState(
+                                    icon = Icons.Default.Search,
+                                    title = "Busca un producto",
+                                    message = "Usa la cámara para escanear un código o realiza una búsqueda manual"
+                                )
+                            }
+
+                            is UiState.Loading -> {
+                                LoadingState(message = "Buscando productos...")
+                            }
+
+                            is UiState.Success -> {
+                                if (state.data.isEmpty()) {
                                     EmptyState(
                                         icon = Icons.Default.Search,
-                                        title = "Busca un producto",
-                                        message = "Usa la cámara para escanear un código o realiza una búsqueda manual"
+                                        title = "Sin resultados",
+                                        message = "No se encontraron productos con \"$searchQuery\"",
+                                        actionButton = {
+                                            SecondaryButton(
+                                                text = "Nueva búsqueda",
+                                                onClick = {
+                                                    localSearchQuery = ""
+                                                    productoViewModel.clearSearch()
+                                                }
+                                            )
+                                        }
                                     )
-                                }
+                                } else {
+                                    Column {
+                                        // Header de resultados
+                                        Text(
+                                            text = "${state.data.size} resultado(s) encontrado(s)",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(16.dp)
+                                        )
 
-                                is UiState.Loading -> {
-                                    LoadingState(message = "Buscando productos...")
-                                }
-
-                                is UiState.Success -> {
-                                    if (state.data.isEmpty()) {
-                                        EmptyState(
-                                            icon = Icons.Default.Search,
-                                            title = "Sin resultados",
-                                            message = "No se encontraron productos con \"$searchQuery\"",
-                                            actionButton = {
-                                                SecondaryButton(
-                                                    text = "Nueva búsqueda",
+                                        // Lista de productos
+                                        LazyColumn(
+                                            contentPadding = PaddingValues(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            items(state.data) { producto ->
+                                                ProductoCard(
+                                                    producto = producto,
                                                     onClick = {
-                                                        localSearchQuery = ""
-                                                        productoViewModel.clearSearch()
+                                                        onNavigateToDetail(producto.sku)
                                                     }
                                                 )
                                             }
-                                        )
-                                    } else {
-                                        Column {
-                                            // Header de resultados
-                                            Text(
-                                                text = "${state.data.size} resultado(s) encontrado(s)",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(16.dp)
-                                            )
-
-                                            // Lista de productos
-                                            LazyColumn(
-                                                contentPadding = PaddingValues(16.dp),
-                                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                                            ) {
-                                                items(state.data) { producto ->
-                                                    ProductoCard(
-                                                        producto = producto,
-                                                        onClick = {
-                                                            onNavigateToDetail(producto.sku)
-                                                        }
-                                                    )
-                                                }
-                                            }
                                         }
                                     }
                                 }
+                            }
 
-                                is UiState.Error -> {
-                                    ErrorState(
-                                        message = state.message,
-                                        onRetry = {
-                                            productoViewModel.searchProductos(localSearchQuery)
-                                        }
-                                    )
-                                }
+                            is UiState.Error -> {
+                                ErrorState(
+                                    message = state.message,
+                                    onRetry = {
+                                        productoViewModel.searchProductos(localSearchQuery)
+                                    }
+                                )
                             }
                         }
                     }
@@ -287,7 +256,9 @@ fun BusquedaScreen(
         }
     }
 
-    // Diálogo de información sobre escaneo
+
+    // El diálogo InfoDialog no se está usando, puedes eliminarlo si quieres.
+    // Lo mantengo aquí por si lo necesitas en el futuro.
     InfoDialog(
         title = "Escanear Código",
         message = "La funcionalidad de escaneo con cámara estará disponible próximamente. Por ahora, utiliza la búsqueda manual.",
@@ -295,7 +266,7 @@ fun BusquedaScreen(
         showDialog = showScanDialog
     )
 
-    // Escáner de códigos de barras
+    // Escáner de códigos de barras (se muestra condicionalmente)
     if (showScanner) {
         BarcodeScanner(
             onBarcodeScanned = { codigo ->

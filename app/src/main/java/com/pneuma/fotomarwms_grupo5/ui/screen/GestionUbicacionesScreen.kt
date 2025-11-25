@@ -17,9 +17,7 @@ import com.pneuma.fotomarwms_grupo5.models.Pasillo
 import com.pneuma.fotomarwms_grupo5.models.Piso
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
-import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
 import com.pneuma.fotomarwms_grupo5.viewmodels.UbicacionViewModel
-import kotlinx.coroutines.launch
 
 /**
  * Pantalla de Gestión de Ubicaciones
@@ -37,54 +35,27 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GestionUbicacionesScreen(
-    authViewModel: AuthViewModel,
     ubicacionViewModel: UbicacionViewModel,
     onNavigateToDetail: (String) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Estados
-    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val ubicacionesState by ubicacionViewModel.ubicacionesState.collectAsStateWithLifecycle()
     val pisoSeleccionado by ubicacionViewModel.pisoSeleccionado.collectAsStateWithLifecycle()
     val pasilloSeleccionado by ubicacionViewModel.pasilloSeleccionado.collectAsStateWithLifecycle()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
 
     // Cargar ubicaciones al iniciar
     LaunchedEffect(Unit) {
         ubicacionViewModel.getAllUbicaciones()
     }
-
-    // Drawer con menú lateral
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            DrawerContent(
-                currentUser = currentUser,
-                currentRoute = "gestion_ubicaciones",
-                onNavigate = { route ->
-                    scope.launch {
-                        drawerState.close()
-                        onNavigateBack()
-                    }
-                },
-                onLogout = {
-                    authViewModel.logout()
-                    onNavigateBack()
-                }
+    Scaffold(
+        topBar = {
+            BackTopBar(
+                title = "Ubicaciones",
+                onBackClick = onNavigateBack
             )
         }
-    ) {
-        Scaffold(
-            topBar = {
-                AppTopBar(
-                    title = "Ubicaciones",
-                    onMenuClick = {
-                        scope.launch { drawerState.open() }
-                    }
-                )
-            }
         ) { paddingValues ->
             Column(
                 modifier = modifier
@@ -311,4 +282,4 @@ fun GestionUbicacionesScreen(
             }
         }
     }
-}
+
