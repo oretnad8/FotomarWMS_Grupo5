@@ -232,7 +232,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     )
                     val response = apiService.createAprobacion(request)
                     
-                    if (response.isSuccessful && response.code() == 200) {
+                    if (response.isSuccessful && (response.code() == 200 || response.code() == 201)) {
                         // 3. Eliminar local si éxito
                         solicitudMovimientoDao.deleteById(localId)
                         _createSolicitudState.value = UiState.Success(true)
@@ -306,7 +306,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     )
                     val response = apiService.createAprobacion(request)
                     
-                    if (response.isSuccessful && response.code() == 200) {
+                    if (response.isSuccessful && (response.code() == 200 || response.code() == 201)) {
                         solicitudMovimientoDao.deleteById(localId)
                         _createSolicitudState.value = UiState.Success(true)
                     } else {
@@ -380,7 +380,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                     )
                     val response = apiService.createAprobacion(request)
                     
-                    if (response.isSuccessful && response.code() == 200) {
+                    if (response.isSuccessful && (response.code() == 200 || response.code() == 201)) {
                         solicitudMovimientoDao.deleteById(localId)
                         _createSolicitudState.value = UiState.Success(true)
                     } else {
@@ -482,7 +482,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                 )
                 val response = apiService.aprobarSolicitud(id, request)
                 
-                if (response.isSuccessful && response.code() == 200) {
+                if (response.isSuccessful && (response.code() == 200 || response.code() == 201)) {
                     _respuestaState.value = UiState.Success(true)
                     // Recargar lista
                     getAllAprobaciones()
@@ -512,7 +512,7 @@ class AprobacionViewModel(application: Application) : AndroidViewModel(applicati
                 val request = RechazarRequest(observaciones = observaciones)
                 val response = apiService.rechazarSolicitud(id, request)
                 
-                if (response.isSuccessful && response.code() == 200) {
+                if (response.isSuccessful && (response.code() == 200 || response.code() == 201)) {
                     _respuestaState.value = UiState.Success(true)
                     // Recargar lista
                     getAllAprobaciones()
