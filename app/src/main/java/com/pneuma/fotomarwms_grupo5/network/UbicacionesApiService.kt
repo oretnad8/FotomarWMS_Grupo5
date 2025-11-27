@@ -31,17 +31,6 @@ interface UbicacionesApiService {
     suspend fun getUbicacionByCodigo(@Path("codigo") codigo: String): Response<UbicacionResponse>
 
     /**
-     * GET /api/ubicaciones/pasillo/{pasillo}/posicion/{posicion}
-     * Obtener las 3 ubicaciones (pisos A, B, C) de una posición específica en un pasillo
-     * Ejemplo: pasillo=4, posicion=25 retorna P4-A-25, P4-B-25, P4-C-25
-     */
-    @GET("api/ubicaciones/pasillo/{pasillo}/posicion/{posicion}")
-    suspend fun getUbicacionesByPasilloYPosicion(
-        @Path("pasillo") pasillo: Int,
-        @Path("posicion") posicion: Int
-    ): Response<List<UbicacionResponse>>
-
-    /**
      * POST /api/ubicaciones/asignar
      * Asignar producto a ubicación (INGRESO)
      * Body: { sku, codigoUbicacion (formato P1-A-01), cantidad }

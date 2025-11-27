@@ -19,8 +19,6 @@ object RetrofitClient {
     private const val BASE_URL_PRODUCTOS = "http://fotomarwmsdb.ddns.net:8083/"
     private const val BASE_URL_UBICACIONES = "http://fotomarwmsdb.ddns.net:8084/"
     private const val BASE_URL_APROBACIONES = "http://fotomarwmsdb.ddns.net:8085/"
-    private const val BASE_URL_MENSAJES = "http://fotomarwmsdb.ddns.net:8086/"
-    private const val BASE_URL_INVENTARIO = "http://fotomarwmsdb.ddns.net:8087/"
 
     // Token de autenticación (se actualiza después del login)
     private var authToken: String? = null
@@ -31,11 +29,6 @@ object RetrofitClient {
     fun setAuthToken(token: String?) {
         authToken = token
     }
-
-    /**
-     * Obtiene el token actual
-     */
-    fun getAuthToken(): String? = authToken
 
     /**
      * Interceptor para agregar el token de autenticación a todas las peticiones

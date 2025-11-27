@@ -132,39 +132,6 @@ class UbicacionRepository(
         }
     }
 
-    /**
-     * Obtiene las 3 ubicaciones (pisos A, B, C) de una posición específica en un pasillo
-     */
-    suspend fun getUbicacionesByPasilloYPosicion(pasillo: Int, posicion: Int): Result<List<Ubicacion>> {
-        return try {
-            val response = apiService.getUbicacionesByPasilloYPosicion(pasillo, posicion)
-            if (response.isSuccessful && response.body() != null) {
-                val ubicaciones = response.body()!!.map { ub ->
-                    Ubicacion(
-                        idUbicacion = ub.idUbicacion,
-                        codigoUbicacion = ub.codigoUbicacion,
-                        pasillo = ub.pasillo,
-                        piso = ub.piso.firstOrNull() ?: 'A',
-                        numero = ub.numero,
-                        productos = ub.productos?.map {
-                            com.pneuma.fotomarwms_grupo5.models.ProductoEnUbicacion(
-                                sku = it.sku,
-                                descripcion = it.descripcion,
-                                cantidad = it.cantidadEnUbicacion
-                            )
-                        }
-                    )
-                }
-                Result.success(ubicaciones)
-            } else {
-                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al obtener ubicaciones del pasillo $pasillo posición $posicion", e)
-            Result.failure(e)
-        }
-    }
-
     // ========== ASIGNACIÓN DE PRODUCTOS (LOCAL-FIRST) ==========
 
     /**
@@ -212,13 +179,6 @@ class UbicacionRepository(
     // ========== SINCRONIZACIÓN ==========
 
     /**
-     * Obtiene todas las asignaciones pendientes de sincronización
-     */
-    fun getAsignacionesPendientes(): Flow<List<AsignacionUbicacionLocal>> {
-        return asignacionDao.getAllPendientes()
-    }
-
-    /**
      * Sincroniza todas las asignaciones pendientes
      */
     suspend fun syncAsignacionesPendientes(): Result<Int> {
@@ -254,15 +214,4 @@ class UbicacionRepository(
         }
     }
 
-    /**
-     * Obtiene ubicaciones del cache local
-     */
-    fun getUbicacionesFromCache(piso: String? = null, pasillo: Int? = null): Flow<List<UbicacionLocal>> {
-        return when {
-            piso != null && pasillo != null -> ubicacionDao.getByPasilloYPiso(pasillo, piso)
-            piso != null -> ubicacionDao.getByPiso(piso)
-            pasillo != null -> ubicacionDao.getByPasillo(pasillo)
-            else -> ubicacionDao.getAll()
-        }
-    }
 }
