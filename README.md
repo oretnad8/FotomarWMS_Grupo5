@@ -34,7 +34,7 @@ app/src/main/java/com/pneuma/fotomarwms_grupo5/
 │ └── UiState.kt # Estados de UI genéricos 
 ├── navigation/ 
 │ └── AppNavigation.kt # Definición de rutas y grafo de navegación 
-├── db/ # Persistencia Local (Room) │
+├── db/ # Persistencia Local (Room) 
 ├── AppDatabase.kt # Configuración de BD (Versión 7) 
 │ ├── daos/ # ProductoDao, UbicacionDao, AprobacionDao, etc. 
 │ └── entities/ # Entidades locales (Tablas SQL) 
@@ -171,3 +171,30 @@ La app utiliza una base de datos local robusta (versión 7) para garantizar el f
     * Escanear producto.
     * Solicitar "Reubicación" indicando origen y destino.
     * Al aprobarse, el stock se mueve virtualmente.
+
+## 🚀 Instrucciones de Ejecución
+**Requisitos Previos**
+Android Studio Ladybug (o superior).
+*JDK 11 configurado.
+*Dispositivo físico o emulador con Android 13 (API 33) o superior.
+
+**Pasos para Ejecutar**
+*Clonar el repositorio que contiene el código fuente de la app móvil y los microservicios.
+*Configurar Red: Asegurarse de que el dispositivo tenga acceso a las URLs de los microservicios.
+*Compilación: Abrir el proyecto en Android Studio, sincronizar Gradle y ejecutar el módulo :app.
+*Sincronización: Al iniciar sesión por primera vez, la app descargará el catálogo inicial para funcionamiento offline.
+
+**📦 Entregables y Binarios**
+*APK Firmado: Ubicado en el directorio app/debug/app-debug.apk dentro del archivo comprimido adjunto.
+*Llave de Firma (.jks): El archivo keywms se encuentra dentro del paquete comprimido junto al código fuente.
+
+**Código Fuente:**
+*App Móvil: Directorio /app.
+*Microservicios: Código fuente del backend incluido en las carpetas de servicios correspondientes.
+
+**📈 Evidencia de Trabajo Colaborativo**
+El desarrollo se gestionó mediante Git, manteniendo un historial de commits que refleja la autoría de cada integrante:
+
+**Dante Rojas:** Implementación de arquitectura MVVM, , lógica de repositorios y integración de CameraX/ML Kit para escaneo y gestión de navegación. sincronización local-first.
+
+**Martin Villegas:** Diseño de interfaces en Jetpack Compose, integración de Room Database, Implementación de lógica de negocio en endpoints de egreso/reubicación y automatización de flujo de aprobaciones.
