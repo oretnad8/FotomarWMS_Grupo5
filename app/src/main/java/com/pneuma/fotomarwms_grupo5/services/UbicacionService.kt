@@ -24,12 +24,18 @@ class UbicacionService(private val application: Application) {
     suspend fun getIdUbicacionByCodigo(codigo: String): Int? {
         return withContext(Dispatchers.IO) {
             try {
+                // 1. Intentar local
+                val local = ubicacionDao.getByCodigo(codigo)
+                if (local != null) return@withContext local.id
+
+                // 2. Intentar backend
                 val response = ubicacionesService.getUbicacionByCodigo(codigo)
                 if (response.isSuccessful && response.body() != null) {
                     val ubicacionResponse = response.body()!!
 
-                    // Guardar en base de datos local para futuras consultas
+                    // Guardar en base de datos local
                     val ubicacionLocal = UbicacionLocal(
+                        id = ubicacionResponse.idUbicacion,
                         codigo = ubicacionResponse.codigoUbicacion,
                         pasillo = ubicacionResponse.pasillo,
                         piso = ubicacionResponse.piso,
@@ -42,6 +48,46 @@ class UbicacionService(private val application: Application) {
 
                 null
             } catch (e: Exception) {
+                android.util.Log.e("UbicacionService", "Error getting ID for $codigo", e)
+                null
+            }
+        }
+    }
+
+    /**
+     * Obtiene el código de una ubicación basado en su ID
+     * Si no está en caché local, carga todas las ubicaciones del backend
+     */
+    suspend fun getCodigoById(id: Int?): String? {
+        if (id == null) return null
+        
+        return withContext(Dispatchers.IO) {
+            try {
+                // 1. Intentar local
+                val local = ubicacionDao.getById(id)
+                if (local != null) return@withContext local.codigo
+
+                // 2. Si no esta, cargar TODAS del backend para poblar cache (eficiencia)
+                val response = ubicacionesService.getUbicaciones()
+                if (response.isSuccessful && response.body() != null) {
+                    val allUbicaciones = response.body()!!.map { 
+                        UbicacionLocal(
+                            id = it.idUbicacion,
+                            codigo = it.codigoUbicacion,
+                            pasillo = it.pasillo,
+                            piso = it.piso,
+                            numero = it.numero
+                        )
+                    }
+                    ubicacionDao.insertAll(allUbicaciones)
+                    
+                    // Re-intentar busqueda
+                    return@withContext ubicacionDao.getById(id)?.codigo
+                }
+
+                null
+            } catch (e: Exception) {
+                android.util.Log.e("UbicacionService", "Error getting Codigo for $id", e)
                 null
             }
         }

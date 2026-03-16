@@ -25,10 +25,16 @@ interface UbicacionesApiService {
     /**
      * GET /api/ubicaciones/{codigo}
      * Obtener ubicación por código
-     * Formato: P{pasillo}-{piso}-{numero} (ej: P1-A-15, P3-B-42)
      */
     @GET("api/ubicaciones/{codigo}")
     suspend fun getUbicacionByCodigo(@Path("codigo") codigo: String): Response<UbicacionResponse>
+
+    /**
+     * GET /api/ubicaciones/id/{id}
+     * Obtener ubicación por ID numérico
+     */
+    @GET("api/ubicaciones/id/{id}")
+    suspend fun getUbicacionById(@Path("id") id: Int): Response<UbicacionResponse>
 
     /**
      * POST /api/ubicaciones/asignar

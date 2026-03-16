@@ -11,6 +11,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "ubicaciones_cache")
 data class UbicacionLocal(
     @PrimaryKey
+    val id: Int, // ID unico del backend
     val codigo: String, // Formato: P{pasillo}-{piso}-{numero} (ej: "P1-A-12", "P3-B-45")
     val pasillo: Int, // 1-5
     val piso: String, // "A", "B", "C"

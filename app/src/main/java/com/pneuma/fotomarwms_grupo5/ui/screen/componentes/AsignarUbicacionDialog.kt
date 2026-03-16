@@ -20,7 +20,7 @@ import com.pneuma.fotomarwms_grupo5.models.UbicacionFormatter
  */
 @Composable
 fun AsignarUbicacionDialog(
-    sku: String,
+    codigoBarras: String,
     onDismiss: () -> Unit,
     onConfirm: (String, Int) -> Unit, // codigoUbicacion (formato P1-A-01), cantidad
     modifier: Modifier = Modifier
@@ -62,7 +62,7 @@ fun AsignarUbicacionDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // SKU del producto
+                // Código de Barras del producto
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -82,12 +82,12 @@ fun AsignarUbicacionDialog(
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
-                                text = "Producto",
+                                text = "Código de Barras",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = sku,
+                                text = codigoBarras,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer

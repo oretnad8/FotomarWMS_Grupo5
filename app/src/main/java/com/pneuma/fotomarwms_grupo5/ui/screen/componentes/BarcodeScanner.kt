@@ -86,6 +86,7 @@ fun BarcodeScanner(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
+                        .safeDrawingPadding()
                 ) {
                     // Botón cerrar
                     Row(
@@ -111,7 +112,9 @@ fun BarcodeScanner(
 
                     // Instrucciones
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp), // Add bottom padding for safety
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                         )
@@ -123,13 +126,15 @@ fun BarcodeScanner(
                             Text(
                                 text = "📷 Escanear Código",
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Apunta la cámara hacia el código de barras o QR",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
 
                             if (!isScanning) {

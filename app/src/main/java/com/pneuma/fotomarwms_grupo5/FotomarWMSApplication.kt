@@ -5,6 +5,9 @@ import com.pneuma.fotomarwms_grupo5.db.AppDatabase
 import com.pneuma.fotomarwms_grupo5.network.RetrofitClient
 import com.pneuma.fotomarwms_grupo5.repository.ProductoRepository
 import com.pneuma.fotomarwms_grupo5.repository.UbicacionRepository
+import com.pneuma.fotomarwms_grupo5.services.PedidoWorker
+import androidx.work.*
+import java.util.concurrent.TimeUnit
 
 /**
  * Application class para FotomarWMS
@@ -42,7 +45,23 @@ class FotomarWMSApplication : Application() {
         if (token != null) {
             RetrofitClient.setAuthToken(token)
         }
+        
+        setupNotificationWorker()
     }
+
+    private fun setupNotificationWorker() {
+        val workRequest = PeriodicWorkRequestBuilder<PedidoWorker>(
+            5, TimeUnit.MINUTES
+        ).build()
+        
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "pedido_polling",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+    }
+
+
 
     /**
      * Guarda el token de autenticación

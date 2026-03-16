@@ -41,7 +41,7 @@ fun RegistroDirectoScreen(
 
     // Estados del formulario
     var tipoMovimiento by rememberSaveable { mutableStateOf<TipoMovimiento?>(null) }
-    var sku by rememberSaveable { mutableStateOf("") }
+    var codigoBarras by rememberSaveable { mutableStateOf("") }
     var cantidad by rememberSaveable { mutableStateOf("") }
     var motivo by rememberSaveable { mutableStateOf("") }
     var idUbicacionOrigen by rememberSaveable { mutableStateOf("") }
@@ -50,7 +50,7 @@ fun RegistroDirectoScreen(
     var ubicacionEgreso by rememberSaveable { mutableStateOf("") }
 
     // Estados de validación
-    var skuError by remember { mutableStateOf<String?>(null) }
+    var codigoBarrasError by remember { mutableStateOf<String?>(null) }
     var cantidadError by remember { mutableStateOf<String?>(null) }
     var motivoError by remember { mutableStateOf<String?>(null) }
     var ubicacionError by remember { mutableStateOf<String?>(null) }
@@ -68,7 +68,7 @@ fun RegistroDirectoScreen(
                 showSuccessDialog = true
                 // Limpiar formulario
                 tipoMovimiento = null
-                sku = ""
+                codigoBarras = ""
                 cantidad = ""
                 motivo = ""
                 idUbicacionOrigen = ""
@@ -94,14 +94,14 @@ fun RegistroDirectoScreen(
             // Validar y ejecutar
             val isValid = validarFormulario(
                 tipoMovimiento = tipoMovimiento,
-                sku = sku,
+                codigoBarras = codigoBarras,
                 cantidad = cantidad,
                 motivo = motivo,
                 idUbicacionOrigen = idUbicacionOrigen,
                 idUbicacionDestino = idUbicacionDestino,
                 ubicacionIngreso = ubicacionIngreso,
                 ubicacionEgreso = ubicacionEgreso,
-                onSkuError = { skuError = it },
+                onCodigoBarrasError = { codigoBarrasError = it },
                 onCantidadError = { cantidadError = it },
                 onMotivoError = { motivoError = it },
                 onUbicacionError = { ubicacionError = it }
@@ -111,7 +111,7 @@ fun RegistroDirectoScreen(
                 when (tipoMovimiento) {
                     TipoMovimiento.INGRESO -> {
                         registroDirectoViewModel.registrarIngreso(
-                            sku = sku,
+                            codigoBarras = codigoBarras,
                             cantidad = cantidad.toInt(),
                             ubicacionDestino = ubicacionIngreso,
                             motivo = motivo
@@ -119,7 +119,7 @@ fun RegistroDirectoScreen(
                     }
                     TipoMovimiento.EGRESO -> {
                         registroDirectoViewModel.registrarEgreso(
-                            sku = sku,
+                            codigoBarras = codigoBarras,
                             cantidad = cantidad.toInt(),
                             ubicacionOrigen = ubicacionEgreso,
                             motivo = motivo
@@ -127,7 +127,7 @@ fun RegistroDirectoScreen(
                     }
                     TipoMovimiento.REUBICACION -> {
                         registroDirectoViewModel.registrarReubicacion(
-                            sku = sku,
+                            codigoBarras = codigoBarras,
                             cantidad = cantidad.toInt(),
                             ubicacionOrigen = idUbicacionOrigen,
                             ubicacionDestino = idUbicacionDestino,
@@ -206,16 +206,31 @@ fun RegistroDirectoScreen(
             }
 
             // Campos comunes
-            OutlinedTextField(
-                value = sku,
-                onValueChange = { sku = it; skuError = null },
-                label = { Text("SKU") },
-                isError = skuError != null,
-                supportingText = { if (skuError != null) Text(skuError!!) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+            AppTextField(
+                value = codigoBarras,
+                onValueChange = {
+                    codigoBarras = it.uppercase().trim()
+                    codigoBarrasError = null
+                },
+                label = "Código de Barras",
+                placeholder = "Ej: 12345678901234",
+                leadingIcon = Icons.Default.QrCode,
+                isError = codigoBarrasError != null,
+                errorMessage = codigoBarrasError
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ScanSimpleButton(
+                onCodeScanned = {
+                    codigoBarras = it.trim()
+                    codigoBarrasError = null
+                },
+                label = "Escanear Producto",
+                isFullWidth = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = cantidad,
@@ -251,7 +266,7 @@ fun RegistroDirectoScreen(
 
                     ScanUbicacionButton(
                         onUbicacionScanned = { codigo ->
-                            ubicacionIngreso = codigo
+                            ubicacionIngreso = codigo.trim()
                             ubicacionError = null
                         },
                         isFullWidth = true
@@ -259,7 +274,7 @@ fun RegistroDirectoScreen(
 
                     OutlinedTextField(
                         value = ubicacionIngreso,
-                        onValueChange = { ubicacionIngreso = it; ubicacionError = null },
+                        onValueChange = { ubicacionIngreso = it.trim(); ubicacionError = null },
                         label = { Text("Código de Ubicación") },
                         isError = ubicacionError != null,
                         supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
@@ -279,7 +294,7 @@ fun RegistroDirectoScreen(
 
                     ScanUbicacionButton(
                         onUbicacionScanned = { codigo ->
-                            ubicacionEgreso = codigo
+                            ubicacionEgreso = codigo.trim()
                             ubicacionError = null
                         },
                         isFullWidth = true
@@ -287,7 +302,7 @@ fun RegistroDirectoScreen(
 
                     OutlinedTextField(
                         value = ubicacionEgreso,
-                        onValueChange = { ubicacionEgreso = it; ubicacionError = null },
+                        onValueChange = { ubicacionEgreso = it.trim(); ubicacionError = null },
                         label = { Text("Código de Ubicación") },
                         isError = ubicacionError != null,
                         supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
@@ -307,7 +322,7 @@ fun RegistroDirectoScreen(
 
                     ScanUbicacionButton(
                         onUbicacionScanned = { codigo ->
-                            idUbicacionOrigen = codigo
+                            idUbicacionOrigen = codigo.trim()
                             ubicacionError = null
                         },
                         isFullWidth = true
@@ -315,7 +330,7 @@ fun RegistroDirectoScreen(
 
                     OutlinedTextField(
                         value = idUbicacionOrigen,
-                        onValueChange = { idUbicacionOrigen = it; ubicacionError = null },
+                        onValueChange = { idUbicacionOrigen = it.trim(); ubicacionError = null },
                         label = { Text("Código de Ubicación") },
                         isError = ubicacionError != null,
                         supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
@@ -335,7 +350,7 @@ fun RegistroDirectoScreen(
 
                     ScanUbicacionButton(
                         onUbicacionScanned = { codigo ->
-                            idUbicacionDestino = codigo
+                            idUbicacionDestino = codigo.trim()
                             ubicacionError = null
                         },
                         isFullWidth = true
@@ -343,7 +358,7 @@ fun RegistroDirectoScreen(
 
                     OutlinedTextField(
                         value = idUbicacionDestino,
-                        onValueChange = { idUbicacionDestino = it; ubicacionError = null },
+                        onValueChange = { idUbicacionDestino = it.trim(); ubicacionError = null },
                         label = { Text("Código de Ubicación") },
                         isError = ubicacionError != null,
                         supportingText = { if (ubicacionError != null) Text(ubicacionError!!) },
@@ -383,26 +398,26 @@ fun RegistroDirectoScreen(
 
 private fun validarFormulario(
     tipoMovimiento: TipoMovimiento?,
-    sku: String,
+    codigoBarras: String,
     cantidad: String,
     motivo: String,
     idUbicacionOrigen: String,
     idUbicacionDestino: String,
     ubicacionIngreso: String,
     ubicacionEgreso: String,
-    onSkuError: (String?) -> Unit,
+    onCodigoBarrasError: (String?) -> Unit,
     onCantidadError: (String?) -> Unit,
     onMotivoError: (String?) -> Unit,
     onUbicacionError: (String?) -> Unit
 ): Boolean {
     var isValid = true
 
-    // Validar SKU
-    if (sku.isBlank()) {
-        onSkuError("SKU es requerido")
+    // Validar Código de Barras
+    if (codigoBarras.isBlank()) {
+        onCodigoBarrasError("Código de barras es requerido")
         isValid = false
     } else {
-        onSkuError(null)
+        onCodigoBarrasError(null)
     }
 
     // Validar cantidad

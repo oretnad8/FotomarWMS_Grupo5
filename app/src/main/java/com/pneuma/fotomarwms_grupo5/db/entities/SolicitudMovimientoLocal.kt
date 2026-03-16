@@ -8,7 +8,7 @@ data class SolicitudMovimientoLocal(
     @PrimaryKey(autoGenerate = true)
     val idLocal: Long = 0, // ID único en esta tabla local
     val tipoMovimiento: String, // "INGRESO", "EGRESO", "REUBICACION"
-    val sku: String,
+    val codigoBarras: String,
     val cantidad: Int,
     val motivo: String,
     val idUbicacionOrigen: Int?, // Null si no aplica

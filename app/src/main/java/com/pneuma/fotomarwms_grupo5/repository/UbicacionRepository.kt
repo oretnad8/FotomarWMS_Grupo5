@@ -81,6 +81,7 @@ class UbicacionRepository(
                 // Actualizar cache
                 val ubicacionesLocal = ubicaciones.map {
                     UbicacionLocal(
+                        id = it.idUbicacion,
                         codigo = it.codigoUbicacion,
                         pasillo = it.pasillo,
                         piso = it.piso.toString(),
@@ -137,21 +138,21 @@ class UbicacionRepository(
     /**
      * Asigna un producto a una ubicación con patrón local-first
      */
-    suspend fun asignarProducto(sku: String, codigoUbicacion: String, cantidad: Int): Result<Unit> {
+    suspend fun asignarProducto(codigoBarras: String, codigoUbicacion: String, cantidad: Int): Result<Unit> {
         return try {
             // 1. Guardar en Room primero
             val asignacionLocal = AsignacionUbicacionLocal(
-                sku = sku,
+                codigoBarras = codigoBarras,
                 codigoUbicacion = codigoUbicacion,
                 cantidad = cantidad
             )
             val idLocal = asignacionDao.insert(asignacionLocal)
-            Log.d(TAG, "Asignación guardada localmente: $sku -> $codigoUbicacion")
+            Log.d(TAG, "Asignación guardada localmente: $codigoBarras -> $codigoUbicacion")
 
             // 2. Intentar enviar al backend
             try {
                 val request = AsignarUbicacionRequest(
-                    sku = sku,
+                    codigoBarras = codigoBarras,
                     codigoUbicacion = codigoUbicacion,
                     cantidad = cantidad
                 )
@@ -160,7 +161,7 @@ class UbicacionRepository(
                 if (response.isSuccessful) {
                     // 3. Si OK, eliminar de Room
                     asignacionDao.deleteById(idLocal)
-                    Log.d(TAG, "Asignación completada en backend: $sku -> $codigoUbicacion")
+                    Log.d(TAG, "Asignación completada en backend: $codigoBarras -> $codigoUbicacion")
                     Result.success(Unit)
                 } else {
                     Log.w(TAG, "Asignación guardada solo localmente: ${response.code()}")
@@ -190,7 +191,7 @@ class UbicacionRepository(
                 lista.forEach { asignacionLocal ->
                     try {
                         val request = AsignarUbicacionRequest(
-                            sku = asignacionLocal.sku,
+                            codigoBarras = asignacionLocal.codigoBarras,
                             codigoUbicacion = asignacionLocal.codigoUbicacion,
                             cantidad = asignacionLocal.cantidad
                         )
@@ -199,7 +200,7 @@ class UbicacionRepository(
                         if (response.isSuccessful) {
                             asignacionDao.deleteById(asignacionLocal.idLocal)
                             syncCount++
-                            Log.d(TAG, "Asignación sincronizada: ${asignacionLocal.sku}")
+                            Log.d(TAG, "Asignación sincronizada: ${asignacionLocal.codigoBarras}")
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error al sincronizar asignación ${asignacionLocal.idLocal}", e)

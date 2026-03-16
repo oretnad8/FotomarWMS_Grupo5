@@ -22,6 +22,8 @@ fun AppTopBar(
     title: String,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
+    notificationCount: Int = 0,
+    onNotificationClick: () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     TopAppBar(
@@ -34,10 +36,14 @@ fun AppTopBar(
                 )
             }
         },
-        actions = actions,
+        actions = {
+            NotificationBell(count = notificationCount, onClick = onNotificationClick)
+            actions()
+        },
         modifier = modifier
     )
 }
+
 
 /**
  * TopAppBar con botón de retroceso

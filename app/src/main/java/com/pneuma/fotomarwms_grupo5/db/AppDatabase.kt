@@ -21,7 +21,7 @@ import com.pneuma.fotomarwms_grupo5.db.entities.*
         ConteoLocal::class,
         AsignacionUbicacionLocal::class
     ],
-    version = 7, // Incrementado por la eliminación de MensajeLocal
+    version = 8, // Incrementado para forzar migración destructiva y limpiar caché corrupta
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

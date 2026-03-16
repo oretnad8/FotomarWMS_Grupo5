@@ -13,6 +13,8 @@ lifecycleCompose = "2.8.6"
 coroutines = "1.9.0"
 accompanist = "0.36.0"
 room = "2.6.1"
+work = "2.9.1"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +40,8 @@ accompanist-navigation-animation = { group = "com.google.accompanist", name = "a
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" } # Para Coroutines
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -96,4 +96,8 @@ dependencies {
     // ========== DEBUG ==========
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // ========== WORKMANAGER ==========
+    implementation(libs.androidx.work.runtime.ktx)
 }
+

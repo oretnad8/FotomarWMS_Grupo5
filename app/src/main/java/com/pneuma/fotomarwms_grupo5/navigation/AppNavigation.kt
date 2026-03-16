@@ -137,7 +137,34 @@ sealed class Screen(val route: String) {
      * Configuración de la app
      */
     object Configuracion : Screen("configuracion")
+
+    // ========== NOTAS DE VENTA (PEDIDOS) ==========
+
+    /**
+     * Lista de pedidos pendientes
+     */
+    object PedidosPendientes : Screen("pedidos_pendientes")
+
+    /**
+     * Hoja de picking para un pedido
+     */
+    data class HojaPicking(val id: Int) : Screen("hoja_picking/{id}") {
+        fun buildRoute(): String = "hoja_picking/$id"
+    }
+
+    /**
+     * Pantalla de entrega para transportistas
+     */
+    data class Entrega(val id: Int) : Screen("entrega/{id}") {
+        fun buildRoute(): String = "entrega/$id"
+    }
+
+    /**
+     * Dashboard de monitoreo de pedidos
+     */
+    object MonitoreoPedidos : Screen("monitoreo_pedidos")
 }
+
 
 /**
  * Obtiene la ruta del dashboard según el rol del usuario

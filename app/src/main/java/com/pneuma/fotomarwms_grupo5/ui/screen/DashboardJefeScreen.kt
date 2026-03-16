@@ -36,8 +36,10 @@ fun DashboardJefeScreen(
     authViewModel: AuthViewModel,
     aprobacionViewModel: AprobacionViewModel,
     onNavigate: (String) -> Unit,
+    notificationCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
+
     // Estados
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -68,8 +70,11 @@ fun DashboardJefeScreen(
                     title = "Dashboard Jefe",
                     onMenuClick = {
                         scope.launch { drawerState.open() }
-                    }
+                    },
+                    notificationCount = notificationCount,
+                    onNotificationClick = { onNavigate("pedidos_pendientes") }
                 )
+
             }
         ) { paddingValues ->
             Column(
@@ -130,7 +135,27 @@ fun DashboardJefeScreen(
                     text = "Ver Ubicaciones",
                     onClick = { onNavigate("gestion_ubicaciones") },
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Notas de Venta
+                QuickActionButton(
+                    icon = Icons.Default.Description,
+                    text = "Notas de Venta",
+                    onClick = { onNavigate("pedidos_pendientes") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Monitoreo
+                QuickActionButton(
+                    icon = Icons.Default.BarChart,
+                    text = "Monitoreo de Pedidos",
+                    onClick = { onNavigate("monitoreo_pedidos") }
+                )
             }
+
+
         }
     }
 }

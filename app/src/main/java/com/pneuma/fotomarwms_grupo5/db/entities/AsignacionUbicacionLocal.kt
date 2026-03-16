@@ -9,7 +9,7 @@ data class AsignacionUbicacionLocal(
     val idLocal: Long = 0, // ID único local
 
     // Datos necesarios para la asignación (basado en AsignarUbicacionRequest)
-    val sku: String,
+    val codigoBarras: String,
     val codigoUbicacion: String, // Usamos el código (ej: "A-12") ya que es más directo
     val cantidad: Int,
 

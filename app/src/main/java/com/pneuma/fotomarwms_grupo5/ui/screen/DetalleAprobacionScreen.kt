@@ -63,6 +63,9 @@ fun DetalleAprobacionScreen(
             is UiState.Success -> {
                 showSuccessDialog = true
             }
+            is UiState.Error -> {
+                // El error se muestra en un diálogo o snackbar
+            }
             else -> {}
         }
     }
@@ -105,6 +108,18 @@ fun DetalleAprobacionScreen(
         },
         showDialog = showSuccessDialog
     )
+
+    // Diálogo de error
+    if (respuestaState is UiState.Error) {
+        val error = (respuestaState as UiState.Error).message
+        ErrorDialog(
+            message = error,
+            showDialog = true,
+            onDismiss = {
+                aprobacionViewModel.clearRespuestaState()
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -184,13 +199,16 @@ fun DetalleAprobacionScreen(
                                     modifier = Modifier.padding(bottom = 12.dp)
                                 )
 
-                                DetailRow(label = "SKU", value = aprobacion.sku)
+                                DetailRow(label = "Código de Barras", value = aprobacion.codigoBarras)
                                 DetailRow(label = "Cantidad", value = aprobacion.cantidad.toString())
                             }
                         }
 
-                        // ========== UBICACIONES (SOLO REUBICACION) ==========
-                        if (aprobacion.tipoMovimiento == TipoMovimiento.REUBICACION) {
+                        // ========== UBICACIONES ==========
+                        val mostrarOrigen = aprobacion.tipoMovimiento == TipoMovimiento.REUBICACION || aprobacion.tipoMovimiento == TipoMovimiento.EGRESO
+                        val mostrarDestino = aprobacion.tipoMovimiento == TipoMovimiento.REUBICACION || aprobacion.tipoMovimiento == TipoMovimiento.INGRESO
+
+                        if (mostrarOrigen || mostrarDestino) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -200,20 +218,25 @@ fun DetalleAprobacionScreen(
                                     modifier = Modifier.padding(16.dp)
                                 ) {
                                     Text(
-                                        text = "Reubicación",
+                                        text = "Ubicaciones",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(bottom = 12.dp)
                                     )
 
-                                    DetailRow(
-                                        label = "Desde",
-                                        value = aprobacion.ubicacionOrigen ?: "N/A"
-                                    )
-                                    DetailRow(
-                                        label = "Hacia",
-                                        value = aprobacion.ubicacionDestino ?: "N/A"
-                                    )
+                                    if (mostrarOrigen) {
+                                        DetailRow(
+                                            label = "Origen (Desde)",
+                                            value = aprobacion.ubicacionOrigen ?: "N/A"
+                                        )
+                                    }
+                                    
+                                    if (mostrarDestino) {
+                                        DetailRow(
+                                            label = "Destino (Hacia)",
+                                            value = aprobacion.ubicacionDestino ?: "N/A"
+                                        )
+                                    }
                                 }
                             }
                         }

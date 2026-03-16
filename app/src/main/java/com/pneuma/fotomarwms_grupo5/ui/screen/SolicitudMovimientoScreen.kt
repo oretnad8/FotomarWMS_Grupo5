@@ -31,15 +31,18 @@ import com.pneuma.fotomarwms_grupo5.viewmodels.AprobacionViewModel
 @Composable
 fun SolicitudMovimientoScreen(
     aprobacionViewModel: AprobacionViewModel,
+    productoViewModel: com.pneuma.fotomarwms_grupo5.viewmodels.ProductoViewModel,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Estados
     val createState by aprobacionViewModel.createSolicitudState.collectAsStateWithLifecycle()
+    val selectedProducto by productoViewModel.selectedProducto.collectAsStateWithLifecycle()
+    val searchState by productoViewModel.searchState.collectAsStateWithLifecycle()
 
     // Estados del formulario
     var tipoMovimiento by remember { mutableStateOf<TipoMovimiento?>(null) }
-    var sku by remember { mutableStateOf("") }
+    var codigoBarras by remember { mutableStateOf("") }
     var cantidad by remember { mutableStateOf("") }
     var motivo by remember { mutableStateOf("") }
     var idUbicacionOrigen by remember { mutableStateOf("") }
@@ -48,7 +51,7 @@ fun SolicitudMovimientoScreen(
     var ubicacionEgreso by remember { mutableStateOf("") }
 
     // Estados de validación
-    var skuError by remember { mutableStateOf<String?>(null) }
+    var codigoBarrasError by remember { mutableStateOf<String?>(null) }
     var cantidadError by remember { mutableStateOf<String?>(null) }
     var motivoError by remember { mutableStateOf<String?>(null) }
     var ubicacionError by remember { mutableStateOf<String?>(null) }
@@ -58,20 +61,27 @@ fun SolicitudMovimientoScreen(
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
+    // Limpiar producto seleccionado al salir/entrar
+    LaunchedEffect(Unit) {
+        productoViewModel.clearSelectedProducto()
+        productoViewModel.clearSearch()
+    }
+    
     // Manejar estados de creación
     LaunchedEffect(createState) {
         when (val state = createState) {
             is UiState.Success -> {
                 showSuccessDialog = true
-                // Limpiar formulario
+                // Limpiar formulario y producto
                 tipoMovimiento = null
-                sku = ""
+                codigoBarras = ""
                 cantidad = ""
                 motivo = ""
                 idUbicacionOrigen = ""
                 idUbicacionDestino = ""
                 ubicacionIngreso = ""
                 ubicacionEgreso = ""
+                productoViewModel.clearSelectedProducto()
             }
             is UiState.Error -> {
                 errorMessage = state.message
@@ -171,18 +181,79 @@ fun SolicitudMovimientoScreen(
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
-                        // Campo SKU
+                        // Campo CodigoBarras con verificación
                         AppTextField(
-                            value = sku,
+                            value = codigoBarras,
                             onValueChange = {
-                                sku = it.uppercase()
-                                skuError = null
+                                codigoBarras = it.uppercase().trim()
+                                codigoBarrasError = null
+                                // Resetear producto si cambia el código manual
+                                if (selectedProducto?.sku != it.trim() && selectedProducto?.codigoBarrasIndividual != it.trim()) {
+                                    productoViewModel.clearSelectedProducto()
+                                }
                             },
-                            label = "SKU del Producto",
-                            placeholder = "Ej: AP30001",
-                            leadingIcon = Icons.Default.Inventory,
-                            isError = skuError != null,
-                            errorMessage = skuError
+                            label = "Código de Barras / SKU",
+                            placeholder = "Ej: 12345678901234",
+                            leadingIcon = Icons.Default.QrCode,
+                            trailingIcon = {
+                                IconButton(onClick = { 
+                                    if (codigoBarras.isNotBlank()) {
+                                        productoViewModel.searchByBarcode(codigoBarras) 
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Search, contentDescription = "Verificar")
+                                }
+                            },
+                            isError = codigoBarrasError != null,
+                            errorMessage = codigoBarrasError
+                        )
+
+                        // Mostrar producto verificado
+                        if (selectedProducto != null) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                ),
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Text(
+                                        text = "Producto Verificado:",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Text(
+                                        text = selectedProducto!!.descripcion,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Text(
+                                        text = "SKU: ${selectedProducto!!.sku}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                }
+                            }
+                        } else if (searchState is UiState.Error) {
+                             Text(
+                                text = (searchState as UiState.Error).message,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 4.dp, start = 8.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        ScanSimpleButton(
+                            onCodeScanned = {
+                                codigoBarras = it
+                                codigoBarrasError = null
+                                productoViewModel.searchByBarcode(it)
+                            },
+                            label = "Escanear Producto",
+                            isFullWidth = true
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -298,7 +369,7 @@ fun SolicitudMovimientoScreen(
                             OutlinedTextField(
                                 value = ubicacionIngreso,
                                 onValueChange = {
-                                    ubicacionIngreso = it
+                                    ubicacionIngreso = it.trim()
                                     ubicacionError = null
                                 },
                                 label = { Text("Ubicación") },
@@ -318,7 +389,7 @@ fun SolicitudMovimientoScreen(
 
                             ScanUbicacionButton(
                                 onUbicacionScanned = { ubicacion ->
-                                    ubicacionIngreso = ubicacion
+                                    ubicacionIngreso = ubicacion.trim()
                                     ubicacionError = null
                                 },
                                 label = "Escanear Ubicación de Ingreso",
@@ -349,7 +420,7 @@ fun SolicitudMovimientoScreen(
                             OutlinedTextField(
                                 value = ubicacionEgreso,
                                 onValueChange = {
-                                    ubicacionEgreso = it
+                                    ubicacionEgreso = it.trim()
                                     ubicacionError = null
                                 },
                                 label = { Text("Ubicación") },
@@ -369,7 +440,7 @@ fun SolicitudMovimientoScreen(
 
                             ScanUbicacionButton(
                                 onUbicacionScanned = { ubicacion ->
-                                    ubicacionEgreso = ubicacion
+                                    ubicacionEgreso = ubicacion.trim()
                                     ubicacionError = null
                                 },
                                 label = "Escanear Ubicación de Egreso",
@@ -405,8 +476,8 @@ fun SolicitudMovimientoScreen(
                             Text(
                                 text = motivoError!!,
                                 color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
                             )
                         }
                     }
@@ -447,8 +518,8 @@ fun SolicitudMovimientoScreen(
                         // Validar formulario
                         var isValid = true
 
-                        if (sku.isBlank()) {
-                            skuError = "El SKU es obligatorio"
+                        if (codigoBarras.isBlank()) {
+                            codigoBarrasError = "El código de barras es obligatorio"
                             isValid = false
                         }
 
@@ -486,10 +557,13 @@ fun SolicitudMovimientoScreen(
 
                         // Si es válido, enviar solicitud
                         if (isValid) {
+                            // Usar el SKU verificado si existe, sino el código ingresado (y que el backend decida)
+                            val skuParaEnviar = selectedProducto?.sku ?: codigoBarras
+                            
                             when (tipoMovimiento) {
                                 TipoMovimiento.INGRESO -> {
                                     aprobacionViewModel.solicitarIngreso(
-                                        sku = sku,
+                                        codigoBarras = skuParaEnviar,
                                         cantidad = cantidad.toInt(),
                                         ubicacionDestino = ubicacionIngreso,
                                         motivo = motivo
@@ -497,7 +571,7 @@ fun SolicitudMovimientoScreen(
                                 }
                                 TipoMovimiento.EGRESO -> {
                                     aprobacionViewModel.solicitarEgreso(
-                                        sku = sku,
+                                        codigoBarras = skuParaEnviar,
                                         cantidad = cantidad.toInt(),
                                         ubicacionOrigen = ubicacionEgreso,
                                         motivo = motivo
@@ -505,7 +579,7 @@ fun SolicitudMovimientoScreen(
                                 }
                                 TipoMovimiento.REUBICACION -> {
                                     aprobacionViewModel.solicitarReubicacion(
-                                        sku = sku,
+                                        codigoBarras = skuParaEnviar,
                                         cantidad = cantidad.toInt(),
                                         ubicacionOrigen = idUbicacionOrigen,
                                         ubicacionDestino = idUbicacionDestino,

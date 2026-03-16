@@ -26,6 +26,7 @@ fun AppTextField(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     leadingIcon: ImageVector? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
     isError: Boolean = false,
     errorMessage: String? = null,
     enabled: Boolean = true,
@@ -43,6 +44,7 @@ fun AppTextField(
             leadingIcon = if (leadingIcon != null) {
                 { Icon(imageVector = leadingIcon, contentDescription = null) }
             } else null,
+            trailingIcon = trailingIcon,
             isError = isError,
             enabled = enabled,
             singleLine = singleLine,

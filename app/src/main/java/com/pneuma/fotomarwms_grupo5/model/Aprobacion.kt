@@ -8,7 +8,7 @@ package com.pneuma.fotomarwms_grupo5.models
 data class Aprobacion(
     val id: Int,
     val tipoMovimiento: TipoMovimiento,
-    val sku: String,
+    val codigoBarras: String,
     val cantidad: Int,
     val motivo: String,
     val estado: EstadoAprobacion,
@@ -49,7 +49,7 @@ enum class EstadoAprobacion {
  */
 data class AprobacionRequest(
     val tipoMovimiento: String, // "INGRESO", "EGRESO", "REUBICACION"
-    val sku: String,
+    val codigoBarras: String,
     val cantidad: Int,
     val motivo: String,
     val idSolicitante: Int? = null, // ID del usuario que solicita

@@ -104,24 +104,30 @@ data class ProductoEnUbicacion(
     @SerializedName("descripcion")
     val descripcion: String,
     @SerializedName("cantidadEnUbicacion")
-    val cantidadEnUbicacion: Int
+    val cantidadEnUbicacion: Int,
+    val lpn: String? = null,
+    val lpnDesc: String? = null,
+    val vencimientoCercano: Boolean? = null
 )
 
 data class AsignarUbicacionRequest(
-    val sku: String,
+    @SerializedName("sku")
+    val codigoBarras: String,
     val codigoUbicacion: String,
     val cantidad: Int
 )
 
 data class EgresoUbicacionRequest(
-    val sku: String,
+    @SerializedName("sku")
+    val codigoBarras: String,
     val codigoUbicacion: String,
     val cantidad: Int,
     val motivo: String? = null
 )
 
 data class ReubicarUbicacionRequest(
-    val sku: String,
+    @SerializedName("sku")
+    val codigoBarras: String,
     val codigoUbicacionOrigen: String,
     val codigoUbicacionDestino: String,
     val cantidad: Int,
@@ -132,7 +138,8 @@ data class ReubicarUbicacionRequest(
 
 data class AprobacionRequest(
     val tipoMovimiento: String, // "INGRESO", "EGRESO", "REUBICACION"
-    val sku: String,
+    @SerializedName("sku")
+    val codigoBarras: String,
     val cantidad: Int,
     val motivo: String,
     val idSolicitante: Int? = null,
@@ -143,7 +150,8 @@ data class AprobacionRequest(
 data class AprobacionResponse(
     val id: Int,
     val tipoMovimiento: String,
-    val sku: String,
+    @SerializedName("sku")
+    val codigoBarras: String,
     val cantidad: Int,
     val motivo: String,
     val estado: String, // "PENDIENTE", "APROBADO", "RECHAZADO"

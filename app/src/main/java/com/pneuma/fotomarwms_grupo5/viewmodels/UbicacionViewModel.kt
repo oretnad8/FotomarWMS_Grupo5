@@ -216,7 +216,7 @@ class UbicacionViewModel(
      */
     fun asignarProducto(
         productoViewModel: ProductoViewModel,
-        sku: String,
+        codigoBarras: String,
         codigoUbicacion: String,
         cantidad: Int
     ){
@@ -224,7 +224,7 @@ class UbicacionViewModel(
             try {
                 _asignacionState.value = UiState.Loading
 
-                val result = ubicacionRepository.asignarProducto(sku, codigoUbicacion, cantidad)
+                val result = ubicacionRepository.asignarProducto(codigoBarras, codigoUbicacion, cantidad)
                 
                 if (result.isSuccess) {
                     _asignacionState.value = UiState.Success(true)
@@ -254,7 +254,7 @@ class UbicacionViewModel(
      * @param sku SKU del producto
      * @param asignaciones Lista de pares (codigoUbicacion, cantidad)
      */
-    fun asignarProductoMultiple(sku: String, asignaciones: List<Pair<String, Int>>) {
+    fun asignarProductoMultiple(codigoBarras: String, asignaciones: List<Pair<String, Int>>) {
         viewModelScope.launch {
             try {
                 _asignacionState.value = UiState.Loading
@@ -263,7 +263,7 @@ class UbicacionViewModel(
                 var errorCount = 0
 
                 asignaciones.forEach { (codigo, cantidad) ->
-                    val result = ubicacionRepository.asignarProducto(sku, codigo, cantidad)
+                    val result = ubicacionRepository.asignarProducto(codigoBarras, codigo, cantidad)
                     if (result.isSuccess) {
                         successCount++
                     } else {

@@ -14,11 +14,12 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
 
     // URLs base de los microservicios
-    private const val BASE_URL_AUTH = "http://fotomarwmsdb.ddns.net:8081/"
-    private const val BASE_URL_USUARIOS = "http://fotomarwmsdb.ddns.net:8082/"
-    private const val BASE_URL_PRODUCTOS = "http://fotomarwmsdb.ddns.net:8083/"
-    private const val BASE_URL_UBICACIONES = "http://fotomarwmsdb.ddns.net:8084/"
-    private const val BASE_URL_APROBACIONES = "http://fotomarwmsdb.ddns.net:8085/"
+    private const val BASE_URL_AUTH = "http://dantero.ddns.net:8081/"
+    private const val BASE_URL_USUARIOS = "http://dantero.ddns.net:8082/"
+    private const val BASE_URL_PRODUCTOS = "http://dantero.ddns.net:8083/"
+    private const val BASE_URL_UBICACIONES = "http://dantero.ddns.net:8084/"
+    private const val BASE_URL_APROBACIONES = "http://dantero.ddns.net:8085/"
+    private const val BASE_URL_PEDIDOS = "http://dantero.ddns.net:8086/"
 
     // Token de autenticación (se actualiza después del login)
     private var authToken: String? = null
@@ -97,4 +98,9 @@ object RetrofitClient {
     val aprobacionesService: AprobacionesApiService by lazy {
         createRetrofit(BASE_URL_APROBACIONES).create(AprobacionesApiService::class.java)
     }
+
+    val pedidosService: PedidoApiService by lazy {
+        createRetrofit(BASE_URL_PEDIDOS).create(PedidoApiService::class.java)
+    }
 }
+

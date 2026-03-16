@@ -7,6 +7,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.pneuma.fotomarwms_grupo5.models.UbicacionFormatter
 
 /**
@@ -77,24 +79,38 @@ fun ScanUbicacionButton(
 
     // Escáner de código de barras a pantalla completa
     if (showBarcodeScanner) {
-        BarcodeScanner(
-            onBarcodeScanned = { scannedCode ->
-                // Parsear el código escaneado (formato P1/A1) a formato estándar (P1-A-01)
-                val parsedCode = UbicacionFormatter.parseScannedCode(scannedCode)
+        Dialog(
+            onDismissRequest = { showBarcodeScanner = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                BarcodeScanner(
+                    onBarcodeScanned = { scannedCode ->
+                        // Parsear el código escaneado (formato P1/A1) a formato estándar (P1-A-01)
+                        val parsedCode = UbicacionFormatter.parseScannedCode(scannedCode)
 
-                if (parsedCode != null) {
-                    onUbicacionScanned(parsedCode)
-                    showBarcodeScanner = false
-                    showError = false
-                } else {
-                    showError = true
-                    errorMessage = "Código de ubicación inválido. Formato esperado: P1/A1"
-                    showBarcodeScanner = false
-                }
-            },
-            onClose = {
-                showBarcodeScanner = false
+                        if (parsedCode != null) {
+                            onUbicacionScanned(parsedCode)
+                            showBarcodeScanner = false
+                            showError = false
+                        } else {
+                            showError = true
+                            errorMessage = "Código de ubicación inválido. Formato esperado: P1/A1"
+                            showBarcodeScanner = false
+                        }
+                    },
+                    onClose = {
+                        showBarcodeScanner = false
+                    }
+                )
             }
-        )
+        }
     }
 }

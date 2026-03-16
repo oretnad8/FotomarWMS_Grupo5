@@ -561,13 +561,14 @@ fun DetalleProductoScreen(
 
     // ========== DIÁLOGO DE ASIGNAR UBICACIÓN ==========
     if (showAsignarDialog && selectedProducto != null) {
+        val codigoParaAsignar = selectedProducto!!.codigoBarrasIndividual ?: selectedProducto!!.sku
         AsignarUbicacionDialog(
-            sku = selectedProducto!!.sku,
+            codigoBarras = codigoParaAsignar,
             onDismiss = { showAsignarDialog = false },
             onConfirm = { codigoUbicacion, cantidad ->
                 ubicacionViewModel.asignarProducto(
                     productoViewModel = productoViewModel,
-                    sku = selectedProducto!!.sku,
+                    codigoBarras = codigoParaAsignar,
                     codigoUbicacion = codigoUbicacion,
                     cantidad = cantidad
                 )

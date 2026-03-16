@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pneuma.fotomarwms_grupo5.models.UiState
 import com.pneuma.fotomarwms_grupo5.ui.screen.componentes.*
 import com.pneuma.fotomarwms_grupo5.viewmodels.AuthViewModel
+import com.pneuma.fotomarwms_grupo5.network.EstadoPedido
 
 import kotlinx.coroutines.launch
 
@@ -32,9 +33,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardOperadorScreen(
     authViewModel: AuthViewModel,
+    pedidosViewModel: com.pneuma.fotomarwms_grupo5.viewmodels.PedidosViewModel,
     onNavigate: (String) -> Unit,
+    notificationCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
+
     // Estados
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -66,7 +70,8 @@ fun DashboardOperadorScreen(
                     onMenuClick = {
                         scope.launch { drawerState.open() }
                     },
-                    actions = {}
+                    notificationCount = notificationCount,
+                    onNotificationClick = { onNavigate("pedidos_pendientes") }
                 )
             }
         ) { paddingValues ->
@@ -92,6 +97,38 @@ fun DashboardOperadorScreen(
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Mis Tareas Activas",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                val misPedidos by pedidosViewModel.misPedidos.collectAsStateWithLifecycle()
+                
+                LaunchedEffect(currentUser) {
+                    if (currentUser != null) {
+                        pedidosViewModel.loadPedidosEnPicking()
+                    }
+                }
+
+                if (misPedidos.isEmpty()) {
+                    Text("No tienes tareas activas.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                } else {
+                    misPedidos.forEach { pedido ->
+                        TaskCard(
+                            icon = Icons.Default.Assignment,
+                            title = "Pedido #${pedido.id}",
+                            description = "${pedido.displayCliente} - ${pedido.estado?.name}",
+                            priority = "ALTA", // Logic could be added here
+                            onClick = { onNavigate("hoja_picking/${pedido.id}") },
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                }
+                
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ========== ACCIONES RÁPIDAS ==========
@@ -136,7 +173,16 @@ fun DashboardOperadorScreen(
                         onClick = { onNavigate("gestion_ubicaciones") },
                         modifier = Modifier.weight(1f)
                     )
+
+                    // Notas de Venta
+                    QuickActionCard(
+                        icon = Icons.Default.Description,
+                        text = "Notas de Venta",
+                        onClick = { onNavigate("pedidos_pendientes") },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
+
             }
         }
     }

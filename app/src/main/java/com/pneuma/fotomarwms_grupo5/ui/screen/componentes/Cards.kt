@@ -153,9 +153,9 @@ fun AprobacionCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // SKU y cantidad
+            // Código de Barras y cantidad
             Text(
-                text = "Producto: ${aprobacion.sku}",
+                text = "Código de Barras: ${aprobacion.codigoBarras}",
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(

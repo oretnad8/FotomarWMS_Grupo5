@@ -35,7 +35,7 @@ class RegistroDirectoViewModel(application: Application) : AndroidViewModel(appl
      * Registra un INGRESO directo
      * Asigna el producto a la ubicación destino inmediatamente
      */
-    fun registrarIngreso(sku: String, cantidad: Int, ubicacionDestino: String, motivo: String) {
+    fun registrarIngreso(codigoBarras: String, cantidad: Int, ubicacionDestino: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _registroState.value = UiState.Loading
@@ -52,7 +52,7 @@ class RegistroDirectoViewModel(application: Application) : AndroidViewModel(appl
 
                 // Asignar producto a ubicación
                 val asignarRequest = AsignarUbicacionRequest(
-                    sku = sku,
+                    codigoBarras = codigoBarras,
                     codigoUbicacion = ubicacionDestino,
                     cantidad = cantidad
                 )
@@ -78,14 +78,14 @@ class RegistroDirectoViewModel(application: Application) : AndroidViewModel(appl
      * Registra un EGRESO directo
      * Reduce el stock del producto en la ubicación origen
      */
-    fun registrarEgreso(sku: String, cantidad: Int, ubicacionOrigen: String, motivo: String) {
+    fun registrarEgreso(codigoBarras: String, cantidad: Int, ubicacionOrigen: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _registroState.value = UiState.Loading
 
                 // Llamar al endpoint de egreso
                 val egresoRequest = EgresoUbicacionRequest(
-                    sku = sku,
+                    codigoBarras = codigoBarras,
                     codigoUbicacion = ubicacionOrigen,
                     cantidad = cantidad,
                     motivo = motivo
@@ -112,14 +112,14 @@ class RegistroDirectoViewModel(application: Application) : AndroidViewModel(appl
      * Registra una REUBICACION directa
      * Mueve el producto de una ubicación a otra
      */
-    fun registrarReubicacion(sku: String, cantidad: Int, ubicacionOrigen: String, ubicacionDestino: String, motivo: String) {
+    fun registrarReubicacion(codigoBarras: String, cantidad: Int, ubicacionOrigen: String, ubicacionDestino: String, motivo: String) {
         viewModelScope.launch {
             try {
                 _registroState.value = UiState.Loading
 
                 // Llamar al endpoint de reubicación
                 val reubicarRequest = ReubicarUbicacionRequest(
-                    sku = sku,
+                    codigoBarras = codigoBarras,
                     codigoUbicacionOrigen = ubicacionOrigen,
                     codigoUbicacionDestino = ubicacionDestino,
                     cantidad = cantidad,

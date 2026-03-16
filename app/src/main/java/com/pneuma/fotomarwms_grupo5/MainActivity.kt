@@ -79,6 +79,10 @@ fun FotomarWMSApp() {
     val aprobacionViewModel: AprobacionViewModel = viewModel()
     val usuarioViewModel: UsuarioViewModel = viewModel()
     val registroDirectoViewModel: RegistroDirectoViewModel = viewModel()
+    val pedidosViewModel: PedidosViewModel = viewModel()
+
+    val pedidosPendientes by pedidosViewModel.pedidosPendientes.collectAsStateWithLifecycle()
+    val notificationCount = pedidosPendientes.size
 
     LaunchedEffect(authState) {
         // La condición ahora usa TU clase AuthState, no la de Crashlytics
@@ -93,32 +97,38 @@ fun FotomarWMSApp() {
             }
         }
     }
-            // Layout base
+
+    // Polling de notificaciones (Pedidos Pendientes)
+    LaunchedEffect(Unit) {
+        while (true) {
+            pedidosViewModel.loadPedidosPendientes()
+            kotlinx.coroutines.delay(30_000L) // 30 segundos
+        }
+    }
+
+    // Layout base
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        NavHost( //Se cambia para que sea animada
+        NavHost(
             navController = navController,
             startDestination = Screen.Splash.route,
             modifier = Modifier.padding(paddingValues = innerPadding),
-            //duracion de transisciones globales aplicadas a todas las pantallas
-            //Transicion para entrar
             enterTransition = {
                 slideInHorizontally(
-                    initialOffsetX = { it / 3 },  // entra desde la derecha
+                    initialOffsetX = { it / 3 },
                     animationSpec = tween(900, easing = FastOutSlowInEasing)
                 ) + fadeIn(tween(700))
             },
             exitTransition = {
                 slideOutHorizontally(
-                    targetOffsetX = { -it / 3 }, // sale a la izquierda
+                    targetOffsetX = { -it / 3 },
                     animationSpec = tween(750, easing = LinearOutSlowInEasing)
                 ) + fadeOut(tween(400))
             },
-            //Transicion para volver atras
             popEnterTransition = {
                 slideInHorizontally(
-                    initialOffsetX = { -it / 3 }, // entra desde la izquierda (al volver)
+                    initialOffsetX = { -it / 3 },
                     animationSpec = tween(900)
                 ) + fadeIn(tween(700))
             },
@@ -139,18 +149,14 @@ fun FotomarWMSApp() {
                     }
                 )
             }
+
             // ========== LOGIN ==========
-            composable(
-                route = Screen.Login.route
-            ){
+            composable(route = Screen.Login.route) {
                 LoginScreen(
                     authViewModel = authViewModel,
                     onNavigateToHome = { route ->
                         navController.navigate(route) {
-                            // Limpiar el stack al hacer login
-                            popUpTo(Screen.Login.route) {
-                                inclusive = true
-                            }
+                            popUpTo(Screen.Login.route) { inclusive = true }
                             launchSingleTop = true
                         }
                     }
@@ -160,15 +166,11 @@ fun FotomarWMSApp() {
             // ========== DASHBOARDS ==========
 
             // Dashboard Admin
-            composable(
-                route = Screen.DashboardAdmin.route
-            ) {
+            composable(route = Screen.DashboardAdmin.route) {
                 DashboardAdminScreen(
                     authViewModel = authViewModel,
                     usuarioViewModel = usuarioViewModel,
-                    onNavigate = { route ->
-                        navController.navigate(route)
-                    }
+                    onNavigate = { route -> navController.navigate(route) }
                 )
             }
 
@@ -177,20 +179,18 @@ fun FotomarWMSApp() {
                 DashboardJefeScreen(
                     authViewModel = authViewModel,
                     aprobacionViewModel = aprobacionViewModel,
-                    onNavigate = { route ->
-                        navController.navigate(route)
-                    }
+                    notificationCount = notificationCount,
+                    onNavigate = { route -> navController.navigate(route) }
                 )
             }
 
-            // Dashboard Supervisor (usa el mismo que Jefe)
+            // Dashboard Supervisor
             composable(route = Screen.DashboardSupervisor.route) {
                 DashboardJefeScreen(
                     authViewModel = authViewModel,
                     aprobacionViewModel = aprobacionViewModel,
-                    onNavigate = { route ->
-                        navController.navigate(route)
-                    }
+                    notificationCount = notificationCount,
+                    onNavigate = { route -> navController.navigate(route) }
                 )
             }
 
@@ -198,67 +198,45 @@ fun FotomarWMSApp() {
             composable(route = Screen.DashboardOperador.route) {
                 DashboardOperadorScreen(
                     authViewModel = authViewModel,
-                    onNavigate = { route ->
-                        navController.navigate(route)
-                    }
+                    pedidosViewModel = pedidosViewModel,
+                    notificationCount = notificationCount,
+                    onNavigate = { route -> navController.navigate(route) }
                 )
             }
 
             // ========== BÚSQUEDA Y PRODUCTOS ==========
-
-            // Búsqueda de productos
             composable(route = Screen.Busqueda.route) {
                 BusquedaScreen(
                     productoViewModel = productoViewModel,
-                    onNavigateToDetail = { sku ->
-                        navController.navigate("detalle_producto/$sku")
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateToDetail = { sku -> navController.navigate("detalle_producto/$sku") },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // Detalle de producto
             composable(
                 route = "detalle_producto/{sku}",
-                arguments = listOf(
-                    navArgument("sku") { type = NavType.StringType }
-                )
+                arguments = listOf(navArgument("sku") { type = NavType.StringType })
             ) { backStackEntry ->
                 val sku = backStackEntry.arguments?.getString("sku") ?: ""
                 DetalleProductoScreen(
                     sku = sku,
                     productoViewModel = productoViewModel,
                     ubicacionViewModel = ubicacionViewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    },
-                    onNavigateToUbicacion = { codigo ->
-                        navController.navigate("detalle_ubicacion/$codigo")
-                    },
-                    onNavigateToAsignarUbicacion = { sku ->
-                        navController.navigate("asignar_ubicacion/$sku")
-                    }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUbicacion = { codigo -> navController.navigate("detalle_ubicacion/$codigo") },
+                    onNavigateToAsignarUbicacion = { sku -> navController.navigate("asignar_ubicacion/$sku") }
                 )
             }
 
             // ========== UBICACIONES ==========
-
-            // Gestión de ubicaciones
             composable(route = Screen.GestionUbicaciones.route) {
                 GestionUbicacionesScreen(
                     ubicacionViewModel = ubicacionViewModel,
-                    onNavigateToDetail = { codigo ->
-                        navController.navigate("detalle_ubicacion/$codigo")
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateToDetail = { codigo -> navController.navigate("detalle_ubicacion/$codigo") },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // Detalle de ubicación
             composable(
                 route = "detalle_ubicacion/{codigo}",
                 arguments = listOf(navArgument("codigo") { type = NavType.StringType })
@@ -268,141 +246,125 @@ fun FotomarWMSApp() {
                     codigo = codigo,
                     ubicacionViewModel = ubicacionViewModel,
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToProducto = { sku ->
-                        navController.navigate("detalle_producto/$sku")
-                    },
-                    onNavigateToConteo = { idUbicacion ->
-                        navController.navigate("conteo_ubicacion/$idUbicacion")
-                    }
+                    onNavigateToProducto = { sku -> navController.navigate("detalle_producto/$sku") },
+                    onNavigateToConteo = { idUbicacion -> navController.navigate("conteo_ubicacion/$idUbicacion") }
                 )
             }
 
             // ========== MOVIMIENTOS ==========
-
-            // Solicitud de movimiento (Operadores)
             composable(route = Screen.SolicitudMovimiento.route) {
                 SolicitudMovimientoScreen(
                     aprobacionViewModel = aprobacionViewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    productoViewModel = productoViewModel,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // Registro directo (Jefe/Supervisor)
             composable(route = Screen.RegistroDirecto.route) {
                 RegistroDirectoScreen(
                     registroDirectoViewModel = registroDirectoViewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
             // ========== APROBACIONES ==========
-
-            // Lista de aprobaciones
             composable(route = Screen.Aprobaciones.route) {
                 AprobacionesScreen(
                     authViewModel = authViewModel,
                     aprobacionViewModel = aprobacionViewModel,
-                    onNavigateToDetail = { id ->
-                        navController.navigate("detalle_aprobacion/$id")
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateToDetail = { id -> navController.navigate("detalle_aprobacion/$id") },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // Detalle de aprobación
             composable(
                 route = "detalle_aprobacion/{id}",
-                arguments = listOf(
-                    navArgument("id") { type = NavType.IntType }
-                )
+                arguments = listOf(navArgument("id") { type = NavType.IntType })
             ) { backStackEntry ->
                 val id = backStackEntry.arguments?.getInt("id") ?: 0
                 DetalleAprobacionScreen(
                     aprobacionId = id,
                     aprobacionViewModel = aprobacionViewModel,
                     authViewModel = authViewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // Mis solicitudes (Operadores)
             composable(route = Screen.MisSolicitudes.route) {
-                // Reutiliza AprobacionesScreen pero carga solo las del usuario
                 AprobacionesScreen(
                     authViewModel = authViewModel,
                     aprobacionViewModel = aprobacionViewModel,
-                    onNavigateToDetail = { id ->
-                        navController.navigate("detalle_aprobacion/$id")
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateToDetail = { id -> navController.navigate("detalle_aprobacion/$id") },
+                    onNavigateBack = { navController.popBackStack() }
                 )
-
-                // Cargar solo mis solicitudes
-                LaunchedEffect(Unit) {
-                    aprobacionViewModel.getMisSolicitudes()
-                }
+                LaunchedEffect(Unit) { aprobacionViewModel.getMisSolicitudes() }
             }
 
-
-
-            // ========== GESTIÓN DE USUARIOS (ADMIN) ==========
-
-            // Lista de usuarios
+            // ========== GESTIÓN DE USUARIOS ==========
             composable(route = Screen.GestionUsuarios.route) {
                 GestionUsuariosScreen(
                     usuarioViewModel = usuarioViewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // Crear usuario
-            composable(route = Screen.CrearUsuario.route) {
-                // La creación se hace desde GestionUsuariosScreen con diálogo
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
-                }
-            }
-
             // ========== PERFIL Y CONFIGURACIÓN ==========
-
-            // Perfil del usuario
             composable(route = Screen.Perfil.route) {
                 PerfilScreen(
                     authViewModel = authViewModel,
                     onNavigateToLogin = {
                         navController.navigate(Screen.Login.route) {
-                            // Limpiar todo el stack
-                            popUpTo(0) {
-                                inclusive = true
-                            }
+                            popUpTo(0) { inclusive = true }
                         }
                     },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // Configuración
             composable(Screen.Configuracion.route) {
-                ConfiguracionScreen(
+                ConfiguracionScreen(onNavigateBack = { navController.popBackStack() })
+            }
+
+            // ========== NOTAS DE VENTA (PEDIDOS) ==========
+            composable(Screen.PedidosPendientes.route) {
+                PedidosListScreen(
+                    viewModel = pedidosViewModel,
+                    onNavigateToPicking = { id -> navController.navigate("hoja_picking/$id") },
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "hoja_picking/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getInt("id") ?: 0
+                HojaPickingScreen(
+                    pedidoId = id,
+                    viewModel = pedidosViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "entrega/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getInt("id") ?: 0
+                EntregaScreen(
+                    pedidoId = id,
+                    viewModel = pedidosViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.MonitoreoPedidos.route) {
+                MonitoreoDashboardScreen(
+                    viewModel = pedidosViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
         }
-
     }
-
 }
+

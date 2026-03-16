@@ -21,6 +21,9 @@ interface UbicacionDao {
     
     @Query("SELECT * FROM ubicaciones_cache WHERE codigo = :codigo LIMIT 1")
     suspend fun getByCodigo(codigo: String): UbicacionLocal?
+
+    @Query("SELECT * FROM ubicaciones_cache WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Int): UbicacionLocal?
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(ubicacion: UbicacionLocal)

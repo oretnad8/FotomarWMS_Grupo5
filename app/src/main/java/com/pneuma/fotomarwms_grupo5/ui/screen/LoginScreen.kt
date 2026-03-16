@@ -86,9 +86,11 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
+            Spacer(modifier = Modifier.height(60.dp))
             Image(
+
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Logo FotomarWMS",
                 modifier = Modifier.size(120.dp)
